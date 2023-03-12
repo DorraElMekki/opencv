@@ -117,7 +117,7 @@ pylab.rcParams['figure.figsize'] = (10.0, 8.0)
 annType = ['segm','bbox','keypoints']
 annType = annType[1]      #specify type here
 prefix = 'person_keypoints' if annType=='keypoints' else 'instances'
-print('Running demo for *%s* results.'%(annType))
+print(f'Running demo for *{annType}* results.')
 
 #initialize COCO ground truth api
 cocoGt=COCO(args.annotations)

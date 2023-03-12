@@ -87,9 +87,7 @@ def mkdir_p(path):
     try:
         os.makedirs(path)
     except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
+        if exc.errno != errno.EEXIST or not os.path.isdir(path):
             raise
 
 T_JAVA_START_INHERITED = read_contents(os.path.join(SCRIPT_DIR, 'templates/java_class_inherited.prolog'))
@@ -105,13 +103,11 @@ class GeneralInfo():
         self.params={}
         self.annotation=[]
         if type == "class":
-            docstring="// C++: class " + self.name + "\n//javadoc: " + self.name
+            docstring = f"// C++: class {self.name}" + "\n//javadoc: " + self.name
         else:
             docstring=""
-        if len(decl)>5 and decl[5]:
-            #logging.info('docstring: %s', decl[5])
-            if re.search("(@|\\\\)deprecated", decl[5]):
-                self.annotation.append("@Deprecated")
+        if len(decl) > 5 and decl[5] and re.search("(@|\\\\)deprecated", decl[5]):
+            self.annotation.append("@Deprecated")
 
         self.docstring = docstring
 
@@ -124,9 +120,9 @@ class GeneralInfo():
         spaceName = ""
         localName = name # <classes>.<name>
         for namespace in sorted(namespaces, key=len, reverse=True):
-            if name.startswith(namespace + "."):
+            if name.startswith(f"{namespace}."):
                 spaceName = namespace
-                localName = name.replace(namespace + ".", "")
+                localName = name.replace(f"{namespace}.", "")
                 break
         pieces = localName.split(".")
         if len(pieces) > 2: # <class>.<class>.<class>.<name>
@@ -140,11 +136,11 @@ class GeneralInfo():
 
     def fullName(self, isCPP=False):
         result = ".".join([self.fullClass(), self.name])
-        return result if not isCPP else get_cname(result)
+        return get_cname(result) if isCPP else result
 
     def fullClass(self, isCPP=False):
         result = ".".join([f for f in [self.namespace] + self.classpath.split(".") if len(f)>0])
-        return result if not isCPP else get_cname(result)
+        return get_cname(result) if isCPP else result
 
 class ConstInfo(GeneralInfo):
     def __init__(self, decl, addedManually=False, namespaces=[], enumType=None):
@@ -154,7 +150,7 @@ class ConstInfo(GeneralInfo):
         self.enumType = enumType
         self.addedManually = addedManually
         if self.namespace in namespaces_dict:
-            self.name = '%s_%s' % (namespaces_dict[self.namespace], self.name)
+            self.name = f'{namespaces_dict[self.namespace]}_{self.name}'
 
     def __repr__(self):
         return Template("CONST $name=$value$manual").substitute(name=self.name,
@@ -162,10 +158,7 @@ class ConstInfo(GeneralInfo):
                                                                  manual="(manual)" if self.addedManually else "")
 
     def isIgnored(self):
-        for c in const_ignore_list:
-            if re.match(c, self.name):
-                return True
-        return False
+        return any(re.match(c, self.name) for c in const_ignore_list)
 
 def normalize_field_name(name):
     return name.replace(".","_").replace("[","").replace("]","").replace("_getNativeObjAddr()","_nativeObj")
@@ -222,7 +215,11 @@ class ClassInfo(GeneralInfo):
         return Template("CLASS $namespace::$classpath.$name : $base").substitute(**self.__dict__)
 
     def getAllImports(self, module):
-        return ["import %s;" % c for c in sorted(self.imports) if not c.startswith('org.opencv.'+module)]
+        return [
+            f"import {c};"
+            for c in sorted(self.imports)
+            if not c.startswith(f'org.opencv.{module}')
+        ]
 
     def addImports(self, ctype):
         if ctype in type_dict:
@@ -236,8 +233,7 @@ class ClassInfo(GeneralInfo):
                     self.imports.add("org.opencv.core.Mat")
 
     def getAllMethods(self):
-        result = []
-        result.extend([fi for fi in sorted(self.methods) if fi.isconstructor])
+        result = [fi for fi in sorted(self.methods) if fi.isconstructor]
         result.extend([fi for fi in sorted(self.methods) if not fi.isconstructor])
         return result
 
@@ -245,18 +241,24 @@ class ClassInfo(GeneralInfo):
         self.methods.append(fi)
 
     def getConst(self, name):
-        for cand in self.consts + self.private_consts:
-            if cand.name == name:
-                return cand
-        return None
+        return next(
+            (
+                cand
+                for cand in self.consts + self.private_consts
+                if cand.name == name
+            ),
+            None,
+        )
 
     def addConst(self, constinfo):
-        # choose right list (public or private)
-        consts = self.consts
-        for c in const_private_list:
-            if re.match(c, constinfo.name):
-                consts = self.private_consts
-                break
+        consts = next(
+            (
+                self.private_consts
+                for c in const_private_list
+                if re.match(c, constinfo.name)
+            ),
+            self.consts,
+        )
         consts.append(constinfo)
 
     def initCodeStreams(self, Module):
@@ -265,11 +267,10 @@ class ClassInfo(GeneralInfo):
         self.cpp_code = StringIO();
         if self.base:
             self.j_code.write(T_JAVA_START_INHERITED)
+        elif self.name == Module:
+            self.j_code.write(T_JAVA_START_MODULE)
         else:
-            if self.name != Module:
-                self.j_code.write(T_JAVA_START_ORPHAN)
-            else:
-                self.j_code.write(T_JAVA_START_MODULE)
+            self.j_code.write(T_JAVA_START_ORPHAN)
         # misc handling
         if self.name == Module:
           for i in module_imports or []:
@@ -329,7 +330,7 @@ class FuncInfo(GeneralInfo):
         if "[" in self.name:
             self.jname = "getelem"
         if self.namespace in namespaces_dict:
-            self.jname = '%s_%s' % (namespaces_dict[self.namespace], self.jname)
+            self.jname = f'{namespaces_dict[self.namespace]}_{self.jname}'
         for m in decl[2]:
             if m.startswith("="):
                 self.jname = m[1:]
@@ -357,7 +358,7 @@ class JavaWrapperGenerator(object):
         self.clear()
 
     def clear(self):
-        self.namespaces = set(["cv"])
+        self.namespaces = {"cv"}
         self.classes = { "Mat" : ClassInfo([ 'class Mat', '', [], [] ], self.namespaces) }
         self.module = ""
         self.Module = ""
@@ -379,19 +380,25 @@ class JavaWrapperGenerator(object):
             logging.warning('duplicated: %s', classinfo)
             return
         type_dict.setdefault(name, {}).update(
-            { "j_type" : classinfo.jname,
-              "jn_type" : "long", "jn_args" : (("__int64", ".nativeObj"),),
-              "jni_name" : "(*("+classinfo.fullName(isCPP=True)+"*)%(n)s_nativeObj)", "jni_type" : "jlong",
-              "suffix" : "J",
-              "j_import" : "org.opencv.%s.%s" % (self.module, classinfo.jname)
+            {
+                "j_type": classinfo.jname,
+                "jn_type": "long",
+                "jn_args": (("__int64", ".nativeObj"),),
+                "jni_name": f"(*({classinfo.fullName(isCPP=True)}*)%(n)s_nativeObj)",
+                "jni_type": "jlong",
+                "suffix": "J",
+                "j_import": f"org.opencv.{self.module}.{classinfo.jname}",
             }
         )
-        type_dict.setdefault(name+'*', {}).update(
-            { "j_type" : classinfo.jname,
-              "jn_type" : "long", "jn_args" : (("__int64", ".nativeObj"),),
-              "jni_name" : "("+classinfo.fullName(isCPP=True)+"*)%(n)s_nativeObj", "jni_type" : "jlong",
-              "suffix" : "J",
-              "j_import" : "org.opencv.%s.%s" % (self.module, classinfo.jname)
+        type_dict.setdefault(f'{name}*', {}).update(
+            {
+                "j_type": classinfo.jname,
+                "jn_type": "long",
+                "jn_args": (("__int64", ".nativeObj"),),
+                "jni_name": f"({classinfo.fullName(isCPP=True)}*)%(n)s_nativeObj",
+                "jni_type": "jlong",
+                "suffix": "J",
+                "j_import": f"org.opencv.{self.module}.{classinfo.jname}",
             }
         )
 
@@ -406,19 +413,18 @@ class JavaWrapperGenerator(object):
 
         # class props
         for p in decl[3]:
-            if True: #"vector" not in p[0]:
-                classinfo.props.append( ClassPropInfo(p) )
-            else:
-                logging.warning("Skipped property: [%s]" % name, p)
-
+            classinfo.props.append( ClassPropInfo(p) )
         if classinfo.base:
             classinfo.addImports(classinfo.base)
-        type_dict.setdefault("Ptr_"+name, {}).update(
-            { "j_type" : classinfo.jname,
-              "jn_type" : "long", "jn_args" : (("__int64", ".getNativeObjAddr()"),),
-              "jni_name" : "*((Ptr<"+classinfo.fullName(isCPP=True)+">*)%(n)s_nativeObj)", "jni_type" : "jlong",
-              "suffix" : "J",
-              "j_import" : "org.opencv.%s.%s" % (self.module, classinfo.jname)
+        type_dict.setdefault(f"Ptr_{name}", {}).update(
+            {
+                "j_type": classinfo.jname,
+                "jn_type": "long",
+                "jn_args": (("__int64", ".getNativeObjAddr()"),),
+                "jni_name": f"*((Ptr<{classinfo.fullName(isCPP=True)}>*)%(n)s_nativeObj)",
+                "jni_type": "jlong",
+                "suffix": "J",
+                "j_import": f"org.opencv.{self.module}.{classinfo.jname}",
             }
         )
         logging.info('ok: class %s, name: %s, base: %s', classinfo, name, classinfo.base)
@@ -431,8 +437,7 @@ class JavaWrapperGenerator(object):
             logging.info('class not found: %s', constinfo)
         else:
             ci = self.getClass(constinfo.classname)
-            duplicate = ci.getConst(constinfo.name)
-            if duplicate:
+            if duplicate := ci.getConst(constinfo.name):
                 if duplicate.addedManually:
                     logging.info('manual: %s', constinfo)
                 else:
@@ -488,20 +493,20 @@ class JavaWrapperGenerator(object):
         # TODO: support UMat versions of declarations (implement UMat-wrapper for Java)
         parser = hdr_parser.CppHeaderParser(generate_umat_decls=False)
 
-        self.add_class( ['class ' + self.Module, '', [], []] ) # [ 'class/struct cname', ':bases', [modlist] [props] ]
+        self.add_class([f'class {self.Module}', '', [], []])
 
         # scan the headers and build more descriptive maps of classes, consts, functions
         includes = [];
         for hdr in common_headers:
             logging.info("\n===== Common header : %s =====", hdr)
-            includes.append('#include "' + hdr + '"')
+            includes.append(f'#include "{hdr}"')
         for hdr in srcfiles:
             decls = parser.parse(hdr)
             self.namespaces = parser.namespaces
             logging.info("\n\n===== Header: %s =====", hdr)
             logging.info("Namespaces: %s", parser.namespaces)
             if decls:
-                includes.append('#include "' + hdr + '"')
+                includes.append(f'#include "{hdr}"')
             else:
                 logging.info("Ignore header: %s", hdr)
             for decl in decls:
@@ -527,13 +532,13 @@ class JavaWrapperGenerator(object):
             ci.initCodeStreams(self.Module)
             self.gen_class(ci)
             classJavaCode = ci.generateJavaCode(self.module, self.Module)
-            self.save("%s/%s/%s.java" % (output_java_path, module, ci.jname), classJavaCode)
+            self.save(f"{output_java_path}/{module}/{ci.jname}.java", classJavaCode)
             moduleCppCode.write(ci.generateCppCode())
             ci.cleanupCodeStreams()
-        cpp_file = os.path.abspath(os.path.join(output_jni_path, module + ".inl.hpp"))
+        cpp_file = os.path.abspath(os.path.join(output_jni_path, f"{module}.inl.hpp"))
         self.cpp_files.append(cpp_file)
         self.save(cpp_file, T_CPP_MODULE.substitute(m = module, M = module.upper(), code = moduleCppCode.getvalue(), includes = "\n".join(includes)))
-        self.save(os.path.join(output_path, module+".txt"), self.makeReport())
+        self.save(os.path.join(output_path, f"{module}.txt"), self.makeReport())
 
     def makeReport(self):
         '''
@@ -952,9 +957,15 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
         # constants
         if ci.private_consts:
             logging.info("%s", ci.private_consts)
-            ci.j_code.write("""
+            ci.j_code.write(
+                (
+                    """
     private static final int
-            %s;\n\n""" % (",\n"+" "*12).join(["%s = %s" % (c.name, c.value) for c in ci.private_consts])
+            %s;\n\n"""
+                    % (",\n" + " " * 12).join(
+                        [f"{c.name} = {c.value}" for c in ci.private_consts]
+                    )
+                )
             )
         if ci.consts:
             enumTypes = set(map(lambda c: c.enumType, ci.consts))
@@ -975,16 +986,31 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
 #    }}\n\n""".format((",\n"+" "*8).join(["%s(%s)" % (c.name, c.value) for c in consts]), typeName)
 #                    )
 ################################################################
-                    ci.j_code.write("""
+                    ci.j_code.write(
+                        (
+                            """
     // C++: enum {1}
     public static final int
-            {0};\n\n""".format((",\n"+" "*12).join(["%s = %s" % (c.name, c.value) for c in consts]), typeName)
+            {0};\n\n""".format(
+                                (",\n" + " " * 12).join(
+                                    [f"{c.name} = {c.value}" for c in consts]
+                                ),
+                                typeName,
+                            )
+                        )
                     )
                 else:
-                    ci.j_code.write("""
+                    ci.j_code.write(
+                        (
+                            """
     // C++: enum <unnamed>
     public static final int
-            {0};\n\n""".format((",\n"+" "*12).join(["%s = %s" % (c.name, c.value) for c in consts]))
+            {0};\n\n""".format(
+                                (",\n" + " " * 12).join(
+                                    [f"{c.name} = {c.value}" for c in consts]
+                                )
+                            )
+                        )
                     )
         # methods
         for fi in ci.getAllMethods():
@@ -992,12 +1018,12 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
         # props
         for pi in ci.props:
             # getter
-            getter_name = ci.fullName() + ".get_" + pi.name
+            getter_name = f"{ci.fullName()}.get_{pi.name}"
             fi = FuncInfo( [getter_name, pi.ctype, [], []], self.namespaces ) # [ funcname, return_ctype, [modifiers], [args] ]
             self.gen_func(ci, fi, pi.name)
             if pi.rw:
                 #setter
-                setter_name = ci.fullName() + ".set_" + pi.name
+                setter_name = f"{ci.fullName()}.set_{pi.name}"
                 fi = FuncInfo( [ setter_name, "void", [], [ [pi.ctype, pi.name, "", [], ""] ] ], self.namespaces)
                 self.gen_func(ci, fi, pi.name)
 
@@ -1008,24 +1034,24 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
                 ci.jn_code.write( "\n".join(ManualFuncs[ci.name][func]["jn_code"]) )
                 ci.cpp_code.write( "\n".join(ManualFuncs[ci.name][func]["cpp_code"]) )
 
-        if ci.name != self.Module or ci.base:
-            # finalize()
-            ci.j_code.write(
-"""
+            if ci.name != self.Module or ci.base:
+                # finalize()
+                ci.j_code.write(
+        """
     @Override
     protected void finalize() throws Throwable {
         delete(nativeObj);
     }
 """ )
 
-            ci.jn_code.write(
-"""
+                ci.jn_code.write(
+        """
     // native support for java finalize()
     private static native void delete(long nativeObj);
 """ )
 
-            # native support for java finalize()
-            ci.cpp_code.write( \
+                # native support for java finalize()
+                ci.cpp_code.write( \
 """
 //
 //  native support for java finalize()
@@ -1040,7 +1066,7 @@ JNIEXPORT void JNICALL Java_org_opencv_%(module)s_%(j_cls)s_delete
 }
 
 """ % {"module" : module.replace('_', '_1'), "cls" : self.smartWrap(ci, ci.fullName(isCPP=True)), "j_cls" : ci.jname.replace('_', '_1')}
-            )
+                )
 
     def getClass(self, classname):
         return self.classes[classname or self.Module]
@@ -1073,13 +1099,11 @@ JNIEXPORT void JNICALL Java_org_opencv_%(module)s_%(j_cls)s_delete
         '''
         Wraps fullname with Ptr<> if needed
         '''
-        if self.isSmartClass(ci):
-            return "Ptr<" + fullname + ">"
-        return fullname
+        return f"Ptr<{fullname}>" if self.isSmartClass(ci) else fullname
 
     def finalize(self, output_jni_path):
         list_file = os.path.join(output_jni_path, "opencv_jni.hpp")
-        self.save(list_file, '\n'.join(['#include "%s"' % f for f in self.cpp_files]))
+        self.save(list_file, '\n'.join([f'#include "{f}"' for f in self.cpp_files]))
 
 
 def copy_java_files(java_files_dir, java_base_path, default_package_path='org/opencv/'):
@@ -1097,16 +1121,15 @@ def copy_java_files(java_files_dir, java_base_path, default_package_path='org/op
         with open(src, 'r') as f:
             package_line = f.readline()
         m = re_prefix.match(java_file)
-        target_fname = (m.group(1) + '.' + m.group(2)) if m else os.path.basename(java_file)
-        m = re_package.match(package_line)
-        if m:
-            package = m.group(1)
+        target_fname = f'{m[1]}.{m[2]}' if m else os.path.basename(java_file)
+        if m := re_package.match(package_line):
+            package = m[1]
             package_path = package.replace('.', '/')
         else:
             package_path = default_package_path
         #print(java_file, package_path, target_fname)
         dest = os.path.join(java_base_path, os.path.join(package_path, target_fname))
-        assert dest[-3:] != '.in', dest + ' | ' + target_fname
+        assert dest[-3:] != '.in', f'{dest} | {target_fname}'
         mkdir_p(os.path.dirname(dest))
         total_files += 1
         if (not os.path.exists(dest)) or (os.stat(src).st_mtime - os.stat(dest).st_mtime > 1):
@@ -1139,14 +1162,18 @@ if __name__ == "__main__":
     with open(args.config) as f:
         config = json.load(f)
 
-    ROOT_DIR = config['rootdir']; assert os.path.exists(ROOT_DIR)
+    ROOT_DIR = config['rootdir']
+    assert os.path.exists(ROOT_DIR)
     FILES_REMAP = { os.path.realpath(os.path.join(ROOT_DIR, f['src'])): f['target'] for f in config['files_remap'] }
     logging.info("\nRemapped configured files (%d):\n%s", len(FILES_REMAP), pformat(FILES_REMAP))
 
     dstdir = "./gen"
-    jni_path = os.path.join(dstdir, 'cpp'); mkdir_p(jni_path)
-    java_base_path = os.path.join(dstdir, 'java'); mkdir_p(java_base_path)
-    java_test_base_path = os.path.join(dstdir, 'test'); mkdir_p(java_test_base_path)
+    jni_path = os.path.join(dstdir, 'cpp')
+    mkdir_p(jni_path)
+    java_base_path = os.path.join(dstdir, 'java')
+    mkdir_p(java_base_path)
+    java_test_base_path = os.path.join(dstdir, 'test')
+    mkdir_p(java_test_base_path)
 
     for (subdir, target_subdir) in [('src/java', 'java'), ('android/java', None), ('android-21/java', None)]:
         if target_subdir is None:
@@ -1219,13 +1246,17 @@ if __name__ == "__main__":
 
         java_files_dir = os.path.join(misc_location, 'src/java')
         if os.path.exists(java_files_dir):
-            copy_java_files(java_files_dir, java_base_path, 'org/opencv/' + module)
+            copy_java_files(java_files_dir, java_base_path, f'org/opencv/{module}')
 
         java_test_files_dir = os.path.join(misc_location, 'test')
         if os.path.exists(java_test_files_dir):
-            copy_java_files(java_test_files_dir, java_test_base_path, 'org/opencv/test/' + module)
+            copy_java_files(
+                java_test_files_dir,
+                java_test_base_path,
+                f'org/opencv/test/{module}',
+            )
 
-        if len(srcfiles) > 0:
+        if srcfiles:
             generator.gen(srcfiles, module, dstdir, jni_path, java_path, common_headers)
         else:
             logging.info("No generated code for module: %s", module)

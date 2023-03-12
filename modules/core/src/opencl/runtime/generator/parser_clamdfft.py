@@ -8,10 +8,7 @@ from common import remove_comments, getTokens, getParameters, postProcessParamet
 
 
 try:
-    if len(sys.argv) > 1:
-        f = open(sys.argv[1], "r")
-    else:
-        f = sys.stdin
+    f = open(sys.argv[1], "r") if len(sys.argv) > 1 else sys.stdin
 except:
     sys.exit("ERROR. Can't open input file")
 
@@ -31,13 +28,12 @@ while True:
             nl = re.sub(r'\n', r'', nl)
             if len(nl) == 0:
                 break;
-            line += ' ' + nl
+            line += f' {nl}'
 
         line = remove_comments(line)
 
         parts = getTokens(line)
 
-        fn = {}
         modifiers = []
         ret = []
         calling = []
@@ -50,7 +46,7 @@ while True:
                 break
             i += 1
         while (i < len(parts)):
-            if not parts[i] == '(':
+            if parts[i] != '(':
                 ret.append(parts[i])
             else:
                 del ret[-1]
@@ -58,13 +54,10 @@ while True:
                 break
             i += 1
 
-        fn['modifiers'] = []  # modifiers
-        fn['ret'] = ret
-        fn['calling'] = calling
-
-        name = parts[i]; i += 1;
-        fn['name'] = name
-        print('name=' + name)
+        name = parts[i]
+        i += 1;
+        fn = {'modifiers': [], 'ret': ret, 'calling': calling, 'name': name}
+        print(f'name={name}')
 
         params = getParameters(i, parts)
 
@@ -94,8 +87,7 @@ functionsFilter = generateFilterNames(fns)
 filter_file = open(filterFileName, 'wb')
 filter_file.write(functionsFilter)
 
-ctx = {}
-ctx['CLAMDFFT_REMAP_ORIGIN'] = generateRemapOrigin(fns)
+ctx = {'CLAMDFFT_REMAP_ORIGIN': generateRemapOrigin(fns)}
 ctx['CLAMDFFT_REMAP_DYNAMIC'] = generateRemapDynamic(fns)
 ctx['CLAMDFFT_FN_DECLARATIONS'] = generateFnDeclaration(fns)
 

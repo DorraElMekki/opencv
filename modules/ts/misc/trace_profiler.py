@@ -93,19 +93,21 @@ def getCXXFunctionName(spec):
         prefix = spec[:prefix_size]
         if prefix_size < len(spec) and spec[prefix_size] in ['#', ':']:
             prefix = prefix + spec[prefix_size]
-            prefix_size = prefix_size + 1
+            prefix_size += 1
         begin = prefix_size
-        while begin < len(spec):
-            if spec[begin].isalnum() or spec[begin] in ['_', ':']:
-                break
-            begin = begin + 1
+        while (
+            begin < len(spec)
+            and not spec[begin].isalnum()
+            and spec[begin] not in ['_', ':']
+        ):
+            begin += 1
         if begin == len(spec):
             return spec
         end = begin
-        while end < len(spec):
-            if not (spec[end].isalnum() or spec[end] in ['_', ':']):
-                break
-            end = end + 1
+        while end < len(spec) and (
+            spec[end].isalnum() or spec[end] in ['_', ':']
+        ):
+            end += 1
         return prefix + spec[begin:end]
 
     spec = spec.replace(') const', ')') # const methods
@@ -113,9 +115,7 @@ def getCXXFunctionName(spec):
     name = extractName(ret_type_name)
     if 'operator' in name:
         return name + params
-    if name.startswith('&'):
-        return name[1:]
-    return name
+    return name[1:] if name.startswith('&') else name
 
 stack_size = 10
 
@@ -145,9 +145,7 @@ class Trace:
             self.totalTimeOpenCL = 0
 
         def __repr__(self):
-            return "TID={} ID={} loc={} parent={}:{} begin={} end={} IPP={}/{} OpenCL={}/{}".format(
-                self.threadID, self.taskID, self.locationID, self.parentThreadID, self.parentTaskID,
-                self.beginTimestamp, self.endTimestamp, self.totalTimeIPP, self.selfTimeIPP, self.totalTimeOpenCL, self.selfTimeOpenCL)
+            return f"TID={self.threadID} ID={self.taskID} loc={self.locationID} parent={self.parentThreadID}:{self.parentTaskID} begin={self.beginTimestamp} end={self.endTimestamp} IPP={self.totalTimeIPP}/{self.selfTimeIPP} OpenCL={self.totalTimeOpenCL}/{self.selfTimeOpenCL}"
 
 
     class TraceLocation:
@@ -159,13 +157,13 @@ class Trace:
             self.flags = flags
 
         def __str__(self):
-            return "{}#{}:{}".format(self.name, self.filename, self.line)
+            return f"{self.name}#{self.filename}:{self.line}"
 
         def __repr__(self):
-            return "ID={} {}:{}:{}".format(self.locationID, self.filename, self.line, self.name)
+            return f"ID={self.locationID} {self.filename}:{self.line}:{self.name}"
 
     def parse_file(self, filename):
-        dprint("Process file: '{}'".format(filename))
+        dprint(f"Process file: '{filename}'")
         with open(filename) as infile:
             for line in infile:
                 line = str(line).strip()
@@ -190,7 +188,7 @@ class Trace:
             return
         extra_opts = {}
         for e in opts[5:]:
-            if not '=' in e:
+            if '=' not in e:
                 continue
             (k, v) = e.split('=')
             extra_opts[k] = tryNum(v)
@@ -208,15 +206,15 @@ class Trace:
         thread_stack = None
         currentTask = (None, None)
         if threadID is not None:
-            if not threadID in self.threads_stack:
+            if threadID not in self.threads_stack:
                 thread_stack = deque()
                 self.threads_stack[threadID] = thread_stack
             else:
                 thread_stack = self.threads_stack[threadID]
-            currentTask = None if not thread_stack else thread_stack[-1]
+            currentTask = thread_stack[-1] if thread_stack else None
         t = (threadID, taskID)
         if opts[0] == 'b':
-            assert not t in self.tasks, "Duplicate task: " + str(t) + repr(self.tasks[t])
+            assert t not in self.tasks, f"Duplicate task: {t}{repr(self.tasks[t])}"
             task = self.TraceTask(threadID, taskID, locationID, ts)
             self.tasks[t] = task
             self.tasks_list.append(task)
@@ -251,12 +249,14 @@ class Trace:
     def process(self):
         self.tasks_list.sort(key=lambda x: x.beginTimestamp)
 
-        parallel_for_location = None
-        for (id, l) in self.locations.items():
-            if l.name == 'parallel_for':
-                parallel_for_location = l.locationID
-                break
-
+        parallel_for_location = next(
+            (
+                l.locationID
+                for id, l in self.locations.items()
+                if l.name == 'parallel_for'
+            ),
+            None,
+        )
         for task in self.tasks_list:
             try:
                 task.duration = task.endTimestamp - task.beginTimestamp
@@ -271,15 +271,12 @@ class Trace:
         dprint("Calculate total times")
 
         for task in self.tasks_list:
-            parentTask = self.getParentTask(task)
-            if parentTask:
+            if parentTask := self.getParentTask(task):
                 parentTask.selfDuration = parentTask.selfDuration - task.duration
                 parentTask.childTask.append(task)
                 timeIPP = task.selfTimeIPP
                 timeOpenCL = task.selfTimeOpenCL
-                while parentTask:
-                    if parentTask.locationID == parallel_for_location:  # TODO parallel_for
-                        break
+                while parentTask and parentTask.locationID != parallel_for_location:
                     parentLocation = self.locations[parentTask.locationID]
                     if (parentLocation.flags & REGION_FLAG_IMPL_MASK) == REGION_FLAG_IMPL_IPP:
                         parentTask.selfTimeIPP = parentTask.selfTimeIPP - timeIPP
@@ -299,12 +296,12 @@ class Trace:
         for task in self.tasks_list:
             if task.locationID == parallel_for_location:
                 task.selfDuration = 0
-                childDuration = sum([t.duration for t in task.childTask])
+                childDuration = sum(t.duration for t in task.childTask)
                 if task.duration == 0 or childDuration == 0:
                     continue
                 timeCoef = task.duration / float(childDuration)
-                childTimeIPP = sum([t.totalTimeIPP for t in task.childTask])
-                childTimeOpenCL = sum([t.totalTimeOpenCL for t in task.childTask])
+                childTimeIPP = sum(t.totalTimeIPP for t in task.childTask)
+                childTimeOpenCL = sum(t.totalTimeOpenCL for t in task.childTask)
                 if childTimeIPP == 0 and childTimeOpenCL == 0:
                     continue
                 timeIPP = childTimeIPP * timeCoef
@@ -352,7 +349,7 @@ class Trace:
                 if not task:
                     break
             callID = tuple(callID)
-            if not callID in calls:
+            if callID not in calls:
                 call = CallInfo(callID)
                 calls[callID] = call
             else:
@@ -384,16 +381,27 @@ class Trace:
             calls_sorted = calls_sorted[:max_entries]
 
         def formatPercents(p):
-            if p is not None:
-                return "{:>3d}".format(int(p*100))
-            return ''
+            return "{:>3d}".format(int(p*100)) if p is not None else ''
 
         name_width = 70
         timestamp_width = 12
         def fmtTS():
             return '{:>' + str(timestamp_width) + '}'
-        fmt = "{:>3} {:<"+str(name_width)+"} {:>8} {:>3}"+((' '+fmtTS())*5)+((' '+fmtTS()+' {:>3}')*2)
-        fmt2 = "{:>3} {:<"+str(name_width)+"} {:>8} {:>3}"+((' '+fmtTS())*5)+((' '+fmtTS()+' {:>3}')*2)
+
+        fmt = (
+            "{:>3} {:<"
+            + str(name_width)
+            + "} {:>8} {:>3}"
+            + f' {fmtTS()}' * 5
+            + (f' {fmtTS()}' + ' {:>3}') * 2
+        )
+        fmt2 = (
+            "{:>3} {:<"
+            + str(name_width)
+            + "} {:>8} {:>3}"
+            + f' {fmtTS()}' * 5
+            + (f' {fmtTS()}' + ' {:>3}') * 2
+        )
         print(fmt.format("ID", "name", "count", "thr", "min", "max", "median", "avg", "*self*", "IPP", "%", "OpenCL", "%"))
         print(fmt2.format("", "", "", "", "t-min", "t-max", "t-median", "t-avg", "total", "t-IPP", "%", "t-OpenCL", "%"))
         for (index, callID) in enumerate(calls_sorted):
@@ -404,7 +412,8 @@ class Trace:
                 loc = self.locations[l]
                 loc_array.append(loc.name if i > 0 else str(loc))
             loc_str = '|'.join(loc_array)
-            if len(loc_str) > name_width: loc_str = loc_str[:name_width-3]+'...'
+            if len(loc_str) > name_width:
+                loc_str = f'{loc_str[:name_width - 3]}...'
             print(fmt.format(index + 1, loc_str, len(call_self_times),
                     len(calls[callID].threads),
                     formatTimestamp(min(call_self_times)),

@@ -16,11 +16,7 @@ args = parser.parse_args()
 net = cv.dnn.readNetFromTorch(args.model)
 net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV);
 
-if args.input:
-    cap = cv.VideoCapture(args.input)
-else:
-    cap = cv.VideoCapture(0)
-
+cap = cv.VideoCapture(args.input) if args.input else cv.VideoCapture(0)
 cv.namedWindow('Styled image', cv.WINDOW_NORMAL)
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()

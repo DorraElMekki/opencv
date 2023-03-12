@@ -152,11 +152,12 @@ class letter_recog_test(NewOpenCVTests):
         testErrors = {RTrees: (98.930000, 92.390000), KNearest: (94.960000, 92.010000),
          Boost: (85.970000, 74.920000), SVM: (99.780000, 95.680000), MLP: (90.060000, 87.410000)}
 
-        for model in models:
-            Model = models[model]
+        for Model in models.values():
             classifier = Model()
 
-            samples, responses = load_base(self.repoPath + '/samples/data/letter-recognition.data')
+            samples, responses = load_base(
+                f'{self.repoPath}/samples/data/letter-recognition.data'
+            )
             train_n = int(len(samples)*classifier.train_ratio)
 
             classifier.train(samples[:train_n], responses[:train_n])

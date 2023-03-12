@@ -49,7 +49,7 @@ kWinName = 'Holistically-Nested Edge Detection'
 cv.namedWindow('Input', cv.WINDOW_NORMAL)
 cv.namedWindow(kWinName, cv.WINDOW_NORMAL)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()
     if not hasFrame:

@@ -14,13 +14,13 @@ class Fail(Exception):
 
 def execute(cmd, shell=False):
     try:
-        log.debug("Executing: %s" % cmd)
+        log.debug(f"Executing: {cmd}")
         log.info('Executing: ' + ' '.join(cmd))
         retcode = subprocess.call(cmd, shell=shell)
         if retcode < 0:
-            raise Fail("Child was terminated by signal: %s" % -retcode)
+            raise Fail(f"Child was terminated by signal: {-retcode}")
         elif retcode > 0:
-            raise Fail("Child returned: %s" % retcode)
+            raise Fail(f"Child returned: {retcode}")
     except OSError as e:
         raise Fail("Execution failed: %d / %s" % (e.errno, e.strerror))
 
@@ -39,28 +39,37 @@ def check_dir(d, create=False, clean=False):
     log.info("Check dir %s (create: %s, clean: %s)", d, create, clean)
     if os.path.exists(d):
         if not os.path.isdir(d):
-            raise Fail("Not a directory: %s" % d)
+            raise Fail(f"Not a directory: {d}")
         if clean:
             for x in glob.glob(os.path.join(d, "*")):
                 rm_one(x)
-    else:
-        if create:
-            os.makedirs(d)
+    elif create:
+        os.makedirs(d)
     return d
 
 def determine_engine_version(manifest_path):
     with open(manifest_path, "rt") as f:
-        return re.search(r'android:versionName="(\d+\.\d+)"', f.read(), re.MULTILINE).group(1)
+        return re.search(
+            r'android:versionName="(\d+\.\d+)"', f.read(), re.MULTILINE
+        )[1]
 
 def determine_opencv_version(version_hpp_path):
     # version in 2.4 - CV_VERSION_EPOCH.CV_VERSION_MAJOR.CV_VERSION_MINOR.CV_VERSION_REVISION
     # version in master - CV_VERSION_MAJOR.CV_VERSION_MINOR.CV_VERSION_REVISION-CV_VERSION_STATUS
     with open(version_hpp_path, "rt") as f:
         data = f.read()
-        major = re.search(r'^#define\W+CV_VERSION_MAJOR\W+(\d+)$', data, re.MULTILINE).group(1)
-        minor = re.search(r'^#define\W+CV_VERSION_MINOR\W+(\d+)$', data, re.MULTILINE).group(1)
-        revision = re.search(r'^#define\W+CV_VERSION_REVISION\W+(\d+)$', data, re.MULTILINE).group(1)
-        version_status = re.search(r'^#define\W+CV_VERSION_STATUS\W+"([^"]*)"$', data, re.MULTILINE).group(1)
+        major = re.search(
+            r'^#define\W+CV_VERSION_MAJOR\W+(\d+)$', data, re.MULTILINE
+        )[1]
+        minor = re.search(
+            r'^#define\W+CV_VERSION_MINOR\W+(\d+)$', data, re.MULTILINE
+        )[1]
+        revision = re.search(
+            r'^#define\W+CV_VERSION_REVISION\W+(\d+)$', data, re.MULTILINE
+        )[1]
+        version_status = re.search(
+            r'^#define\W+CV_VERSION_STATUS\W+"([^"]*)"$', data, re.MULTILINE
+        )[1]
         return "%(major)s.%(minor)s.%(revision)s%(version_status)s" % locals()
 
 # shutil.move fails if dst exists
@@ -115,11 +124,11 @@ class ABI:
             self.cmake_vars['ANDROID_STL'] = 'c++_static'
         if ndk_api_level:
             self.cmake_vars['ANDROID_NATIVE_API_LEVEL'] = ndk_api_level
-        self.cmake_vars.update(cmake_vars)
+        self.cmake_vars |= cmake_vars
     def __str__(self):
-        return "%s (%s)" % (self.name, self.toolchain)
+        return f"{self.name} ({self.toolchain})"
     def haveIPP(self):
-        return self.name == "x86" or self.name == "x86_64"
+        return self.name in ["x86", "x86_64"]
 
 #===================================================================================================
 
@@ -134,7 +143,7 @@ class Builder:
         self.extra_packs = []
         self.opencv_version = determine_opencv_version(os.path.join(self.opencvdir, "modules", "core", "include", "opencv2", "core", "version.hpp"))
         self.engine_version = determine_engine_version(os.path.join(self.opencvdir, "platforms", "android", "service", "engine", "AndroidManifest.xml"))
-        self.use_ccache = False if config.no_ccache else True
+        self.use_ccache = not config.no_ccache
 
     def get_toolchain_file(self):
         if not self.config.force_opencv_toolchain:
@@ -175,21 +184,21 @@ class Builder:
         )
 
         if self.config.extra_modules_path is not None:
-            cmd.append("-DOPENCV_EXTRA_MODULES_PATH='%s'" % self.config.extra_modules_path)
+            cmd.append(f"-DOPENCV_EXTRA_MODULES_PATH='{self.config.extra_modules_path}'")
 
         if self.use_ccache == True:
             cmd.append("-DNDK_CCACHE=ccache")
         if do_install:
             cmd.extend(["-DBUILD_TESTS=ON", "-DINSTALL_TESTS=ON"])
 
-        cmake_vars.update(abi.cmake_vars)
-        cmd += [ "-D%s='%s'" % (k, v) for (k, v) in cmake_vars.items() if v is not None]
+        cmake_vars |= abi.cmake_vars
+        cmd += [f"-D{k}='{v}'" for (k, v) in cmake_vars.items() if v is not None]
         cmd.append(self.opencvdir)
         execute(cmd)
         if do_install:
             execute(["ninja"])
             for c in ["libs", "dev", "java", "samples"]:
-                execute(["cmake", "-DCOMPONENT=%s" % c, "-P", "cmake_install.cmake"])
+                execute(["cmake", f"-DCOMPONENT={c}", "-P", "cmake_install.cmake"])
         else:
             execute(["ninja", "install/strip"])
 
@@ -201,8 +210,8 @@ class Builder:
             WITH_IPP="OFF",
             BUILD_ANDROID_SERVICE = 'ON'
         )
-        cmake_vars.update(abi.cmake_vars)
-        cmd += [ "-D%s='%s'" % (k, v) for (k, v) in cmake_vars.items() if v is not None]
+        cmake_vars |= abi.cmake_vars
+        cmd += [f"-D{k}='{v}'" for (k, v) in cmake_vars.items() if v is not None]
         cmd.append(self.opencvdir)
         execute(cmd)
         apkdest = self.get_engine_apk_dest(engdest)
@@ -222,8 +231,8 @@ class Builder:
                 log.info("Register file: %s", os.path.basename(f))
                 n = ET.SubElement(r, "file", attrib={"name": os.path.basename(f)})
 
-            if len(list(r)) > 0:
-                xmlname = os.path.join(apkxmldest, "config%s.xml" % ver.replace(".", ""))
+            if list(r):
+                xmlname = os.path.join(apkxmldest, f'config{ver.replace(".", "")}.xml')
                 log.info("Generating XML config: %s", xmlname)
                 ET.ElementTree(r).write(xmlname, encoding="utf-8")
 
@@ -235,19 +244,27 @@ class Builder:
     def build_javadoc(self):
         classpaths = []
         for dir, _, files in os.walk(os.environ["ANDROID_SDK"]):
-            for f in files:
-                if f == "android.jar" or f == "annotations.jar":
-                    classpaths.append(os.path.join(dir, f))
+            classpaths.extend(
+                os.path.join(dir, f)
+                for f in files
+                if f in ["android.jar", "annotations.jar"]
+            )
         cmd = [
             "javadoc",
-            "-header", "OpenCV %s" % self.opencv_version,
+            "-header",
+            f"OpenCV {self.opencv_version}",
             "-nodeprecated",
-            "-footer", '<a href="http://docs.opencv.org">OpenCV %s Documentation</a>' % self.opencv_version,
+            "-footer",
+            f'<a href="http://docs.opencv.org">OpenCV {self.opencv_version} Documentation</a>',
             "-public",
-            '-sourcepath', os.path.join(self.resultdest, 'sdk', 'java', 'src'),
-            "-d", self.docdest,
-            "-classpath", ":".join(classpaths),
-            '-subpackages', 'org.opencv',
+            '-sourcepath',
+            os.path.join(self.resultdest, 'sdk', 'java', 'src'),
+            "-d",
+            self.docdest,
+            "-classpath",
+            ":".join(classpaths),
+            '-subpackages',
+            'org.opencv',
         ]
         execute(cmd)
 
@@ -274,7 +291,7 @@ class Builder:
         for abi, engdest in engines:
             log.info("Copy engine: %s (%s)", abi, engdest)
             f = os.path.join(self.get_engine_apk_dest(engdest), "bin", "opencv_engine-debug.apk")
-            resname = "OpenCV_%s_Manager_%s_%s.apk" % (self.opencv_version, self.engine_version, abi)
+            resname = f"OpenCV_{self.opencv_version}_Manager_{self.engine_version}_{abi}.apk"
             dst = os.path.join(self.resultdest, "apk", resname)
             if self.config.force_copy:
                 shutil.copy2(f, dst)
@@ -331,7 +348,7 @@ if __name__ == "__main__":
     if not os.path.exists(cpath):
         cpath = os.path.join(SCRIPT_DIR, cpath)
         if not os.path.exists(cpath):
-            raise Fail('Config "%s" is missing' % args.config)
+            raise Fail(f'Config "{args.config}" is missing')
     with open(cpath, 'r') as f:
         cfg = f.read()
     print("Package configuration:")
@@ -356,12 +373,18 @@ if __name__ == "__main__":
             if i > 0 and i < len(one) - 1:
                 builder.add_extra_pack(one[:i], one[i+1:])
             else:
-                raise Fail("Bad extra pack provided: %s, should be in form '<version>:<path-to-native-libs>'" % one)
+                raise Fail(
+                    f"Bad extra pack provided: {one}, should be in form '<version>:<path-to-native-libs>'"
+                )
 
     engines = []
     for i, abi in enumerate(ABIs):
         do_install = (i == 0)
-        engdest = check_dir(os.path.join(builder.workdir, "build_service_%s" % abi.name), create=True, clean=True)
+        engdest = check_dir(
+            os.path.join(builder.workdir, f"build_service_{abi.name}"),
+            create=True,
+            clean=True,
+        )
 
         log.info("=====")
         log.info("===== Building library for %s", abi)

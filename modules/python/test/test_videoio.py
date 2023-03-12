@@ -10,7 +10,7 @@ class Bindings(NewOpenCVTests):
 
     def check_name(self, name):
         #print(name)
-        self.assertFalse(name == None)
+        self.assertFalse(name is None)
         self.assertFalse(name == "")
 
     def test_registry(self):

@@ -203,11 +203,7 @@ def RGB2LAB(r,g,b):
 
     T = 0.008856 #threshold
 
-    if X > T:
-        fX = math.pow(X, 1./3.)
-    else:
-        fX = 7.787 * X + 16./116.
-
+    fX = math.pow(X, 1./3.) if X > T else 7.787 * X + 16./116.
     # Compute L
     if Y > T:
         Y3 = math.pow(Y, 1./3.)
@@ -217,11 +213,7 @@ def RGB2LAB(r,g,b):
         fY = 7.787 * Y + 16./116.
         L  = 903.3 * Y
 
-    if Z > T:
-        fZ = math.pow(Z, 1./3.)
-    else:
-        fZ = 7.787 * Z + 16./116.
-
+    fZ = math.pow(Z, 1./3.) if Z > T else 7.787 * Z + 16./116.
     # Compute a and b
     a = 500. * (fX - fY)
     b = 200. * (fY - fZ)
@@ -266,13 +258,12 @@ def parseHexColor(col):
     return (int(r,16), int(g,16), int(b,16))
 
 def getColor(col):
-    if isinstance(col, str):
-        if col.lower() in webcolors:
-            return parseHexColor(webcolors[col.lower()])
-        else:
-            return parseHexColor(col)
-    else:
+    if not isinstance(col, str):
         return col
+    if col.lower() in webcolors:
+        return parseHexColor(webcolors[col.lower()])
+    else:
+        return parseHexColor(col)
 
 def getNearestConsoleColor(col):
     color = getColor(col)
@@ -328,7 +319,7 @@ if os.name == 'nt':
         def write(self, *text, **attrs):
             if not text:
                 return
-            color = attrs.get("color", None)
+            color = attrs.get("color")
             if color:
                 col = getNearestConsoleColor(color)
                 self.stream.flush()
@@ -367,7 +358,7 @@ class asciiSeqColorizer(object):
     def write(self, *text, **attrs):
         if not text:
             return
-        color = attrs.get("color", None)
+        color = attrs.get("color")
         if color:
             col = getNearestConsoleColor(color)
             self.stream.write(self.get_seq(col))
@@ -377,10 +368,9 @@ class asciiSeqColorizer(object):
 
 
 def getColorizer(stream):
-    if stream.isatty():
-        if os.name == "nt":
-            return winConsoleColorizer(stream)
-        else:
-            return asciiSeqColorizer(stream)
-    else:
+    if not stream.isatty():
         return dummyColorizer(stream)
+    if os.name == "nt":
+        return winConsoleColorizer(stream)
+    else:
+        return asciiSeqColorizer(stream)

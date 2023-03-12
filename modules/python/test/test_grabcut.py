@@ -47,10 +47,10 @@ class grabcut_test(NewOpenCVTests):
 
         if mask_prob is None:
             mask_prob = mask.copy()
-            cv.imwrite(self.extraTestDataPath + '/cv/grabcut/mask_probpy.png', mask_prob)
+            cv.imwrite(f'{self.extraTestDataPath}/cv/grabcut/mask_probpy.png', mask_prob)
         if exp_mask1 is None:
             exp_mask1 = self.scaleMask(mask)
-            cv.imwrite(self.extraTestDataPath + '/cv/grabcut/exp_mask1py.png', exp_mask1)
+            cv.imwrite(f'{self.extraTestDataPath}/cv/grabcut/exp_mask1py.png', exp_mask1)
 
         self.assertEqual(self.verify(self.scaleMask(mask), exp_mask1), True)
 
@@ -62,7 +62,7 @@ class grabcut_test(NewOpenCVTests):
 
         if exp_mask2 is None:
             exp_mask2 = self.scaleMask(mask)
-            cv.imwrite(self.extraTestDataPath + '/cv/grabcut/exp_mask2py.png', exp_mask2)
+            cv.imwrite(f'{self.extraTestDataPath}/cv/grabcut/exp_mask2py.png', exp_mask2)
 
         self.assertEqual(self.verify(self.scaleMask(mask), exp_mask2), True)
 

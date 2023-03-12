@@ -11,6 +11,7 @@ TODO:
 * clarify special case:
     http://docs.opencv.org/3.2.0/db/de0/group__core__utils.html#ga4910d7f86336cd4eff9dd05575667e41
 """
+
 from __future__ import print_function
 import sys
 sys.dont_write_bytecode = True  # Don't generate .pyc files / __pycache__ directories
@@ -24,8 +25,7 @@ import json
 import html_functions
 import doxygen_scan
 
-loglevel=os.environ.get("LOGLEVEL", None)
-if loglevel:
+if loglevel := os.environ.get("LOGLEVEL", None):
     logging.basicConfig(level=loglevel)
 
 ROOT_DIR = sys.argv[1]
@@ -33,17 +33,14 @@ PYTHON_SIGNATURES_FILE = sys.argv[2]
 JAVA_OR_PYTHON = sys.argv[3]
 
 ADD_JAVA = False
-ADD_PYTHON = False
-if JAVA_OR_PYTHON == "python":
-    ADD_PYTHON = True
-
-python_signatures = dict()
+ADD_PYTHON = JAVA_OR_PYTHON == "python"
+python_signatures = {}
 with open(PYTHON_SIGNATURES_FILE, "rt") as f:
     python_signatures = json.load(f)
     print("Loaded Python signatures: %d" % len(python_signatures))
 
 import xml.etree.ElementTree as ET
-root = ET.parse(ROOT_DIR + 'opencv.tag')
+root = ET.parse(f'{ROOT_DIR}opencv.tag')
 files_dict = {}
 
 # constants and function from opencv.tag
@@ -64,29 +61,24 @@ for c in classes:
     #print('Class: {} => {}'.format(c_name, file))
     doxygen_scan.scan_class_methods(c, c_name, files_dict)
 
-print('Doxygen files to scan: %s' % len(files_dict))
+print(f'Doxygen files to scan: {len(files_dict)}')
 
 files_processed = 0
 files_skipped = 0
 symbols_processed = 0
 
-for file in files_dict:
-    #if file != "dd/d9e/classcv_1_1VideoWriter.html":
-    #if file != "d4/d86/group__imgproc__filter.html":
-    #if file != "df/dfb/group__imgproc__object.html":
-    #    continue
-    #print('File: ' + file)
-
-    anchor_list = files_dict[file]
+for file, anchor_list in files_dict.items():
     active_anchors = [a for a in anchor_list if a.cppname in python_signatures]
-    if len(active_anchors) == 0: # no linked Python symbols
+    if not active_anchors: # no linked Python symbols
         #print('Skip: ' + file)
         files_skipped = files_skipped + 1
         continue
 
     active_anchors_dict = {a.anchor: a for a in active_anchors}
     if len(active_anchors_dict) != len(active_anchors):
-        logging.info('Duplicate entries detected: %s -> %s (%s)' % (len(active_anchors), len(active_anchors_dict), file))
+        logging.info(
+            f'Duplicate entries detected: {len(active_anchors)} -> {len(active_anchors_dict)} ({file})'
+        )
 
     files_processed = files_processed + 1
 

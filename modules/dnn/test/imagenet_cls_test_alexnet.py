@@ -170,7 +170,7 @@ class ClsAccEvaluation:
     def read_classes(img_classes_file):
         result = {}
         with open(img_classes_file) as file:
-            for l in file.readlines():
+            for l in file:
                 result[l.split()[0]] = int(l.split()[1])
         return result
 
@@ -199,12 +199,18 @@ class ClsAccEvaluation:
                 fw_accuracy.append(100 * correct_answers[i] / float(samples_handled))
                 frameworks_out.append(out)
                 inference_time[i] += end - start
-                print(samples_handled, 'Accuracy for', frameworks[i].get_name() + ':', fw_accuracy[i], file=self.log)
+                print(
+                    samples_handled,
+                    'Accuracy for',
+                    f'{frameworks[i].get_name()}:',
+                    fw_accuracy[i],
+                    file=self.log,
+                )
                 print("Inference time, ms ", \
-                    frameworks[i].get_name(), inference_time[i] / samples_handled * 1000, file=self.log)
+                        frameworks[i].get_name(), inference_time[i] / samples_handled * 1000, file=self.log)
 
             for i in range(1, len(frameworks)):
-                log_str = frameworks[0].get_name() + " vs " + frameworks[i].get_name() + ':'
+                log_str = f"{frameworks[0].get_name()} vs {frameworks[i].get_name()}:"
                 diff = np.abs(frameworks_out[0] - frameworks_out[i])
                 l1_diff = np.sum(diff) / diff.size
                 print(samples_handled, "L1 difference", log_str, l1_diff, file=self.log)
@@ -217,7 +223,7 @@ class ClsAccEvaluation:
             self.log.flush()
 
         for i in range(1, len(blobs_l1_diff)):
-            log_str = frameworks[0].get_name() + " vs " + frameworks[i].get_name() + ':'
+            log_str = f"{frameworks[0].get_name()} vs {frameworks[i].get_name()}:"
             print('Final l1 diff', log_str, blobs_l1_diff[i] / blobs_l1_diff_count[i], file=self.log)
 
 if __name__ == "__main__":

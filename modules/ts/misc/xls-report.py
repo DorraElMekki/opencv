@@ -145,23 +145,27 @@ class Collector(object):
 
             if configuration is None:
                 if self.include_unmatched:
-                    if default_configuration is not None:
-                        configuration = default_configuration
-                    else:
-                        configuration = Collector.__format_config_cache_key(props_key, multiline=True)
-
+                    configuration = (
+                        default_configuration
+                        if default_configuration is not None
+                        else Collector.__format_config_cache_key(
+                            props_key, multiline=True
+                        )
+                    )
                     self.extra_configurations.add(configuration)
                 else:
                     logging.warning('failed to match properties to a configuration: %s',
                         Collector.__format_config_cache_key(props_key))
 
-            else:
-                same_config_props = [it[0] for it in self.__config_cache.iteritems() if it[1] == configuration]
-                if len(same_config_props) > 0:
-                    logging.warning('property set %s matches the same configuration %r as property set %s',
-                        Collector.__format_config_cache_key(props_key),
-                        configuration,
-                        Collector.__format_config_cache_key(same_config_props[0]))
+            elif same_config_props := [
+                it[0]
+                for it in self.__config_cache.iteritems()
+                if it[1] == configuration
+            ]:
+                logging.warning('property set %s matches the same configuration %r as property set %s',
+                    Collector.__format_config_cache_key(props_key),
+                    configuration,
+                    Collector.__format_config_cache_key(same_config_props[0]))
 
             self.__config_cache[props_key] = configuration
 
@@ -245,9 +249,15 @@ def main():
 
         sheet.write(0, 0, 'Properties:')
 
-        sheet.write(0, 1,
-          'N/A' if len(sheet_properties) == 0 else
-          ' '.join(str(k) + '=' + repr(v) for (k, v) in sheet_properties))
+        sheet.write(
+            0,
+            1,
+            'N/A'
+            if len(sheet_properties) == 0
+            else ' '.join(
+                f'{str(k)}={repr(v)}' for (k, v) in sheet_properties
+            ),
+        )
 
         sheet.row(2).height = 800
         sheet.panes_frozen = True
@@ -303,8 +313,10 @@ def main():
         sheet.horz_split_first_visible = row
 
         module_colors = sheet_conf.get('module_colors', {})
-        module_styles = {module: xlwt.easyxf('pattern: pattern solid, fore_color {}'.format(color))
-                         for module, color in module_colors.iteritems()}
+        module_styles = {
+            module: xlwt.easyxf(f'pattern: pattern solid, fore_color {color}')
+            for module, color in module_colors.iteritems()
+        }
 
         for module, tests in sorted(collector.tests.iteritems()):
             for ((test, param), configs) in sorted(tests.iteritems()):

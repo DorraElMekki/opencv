@@ -150,15 +150,11 @@ class digits_test(NewOpenCVTests):
         _digits_train, digits_test = np.split(digits2, [train_n])
         samples_train, samples_test = np.split(samples, [train_n])
         labels_train, labels_test = np.split(labels, [train_n])
-        errors = list()
-        confusionMatrixes = list()
-
         model = KNearest(k=4)
         model.train(samples_train, labels_train)
         error, confusion = evaluate_model(model, digits_test, samples_test, labels_test)
-        errors.append(error)
-        confusionMatrixes.append(confusion)
-
+        errors = [error]
+        confusionMatrixes = [confusion]
         model = SVM(C=2.67, gamma=5.383)
         model.train(samples_train, labels_train)
         error, confusion = evaluate_model(model, digits_test, samples_test, labels_test)

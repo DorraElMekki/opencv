@@ -69,7 +69,7 @@ if __name__ == '__main__':
     if args.sdk_path is not None:
         os.environ["ANDROID_SDK"] = os.path.abspath(args.sdk_path)
 
-    print("Using SDK: %s" % os.environ["ANDROID_SDK"])
+    print(f'Using SDK: {os.environ["ANDROID_SDK"]}')
 
     s = suite(abspath(args.workdir), abspath(args.opencv_lib_path), abspath(args.opencv_samples_path))
     res = unittest.TextTestRunner(verbosity=3).run(s)

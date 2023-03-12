@@ -26,10 +26,7 @@ def keyselector(a):
         elif a[0] == '6':
             depth = 6
         cidx = a.find('C')
-        if cidx < 0:
-            channels = 1
-        else:
-            channels = int(a[a.index('C') + 1:])
+        channels = 1 if cidx < 0 else int(a[a.index('C') + 1:])
         #return (depth & 7) + ((channels - 1) << 3)
         return ((channels-1) & 511) + (depth << 9)
     return a
@@ -73,7 +70,7 @@ def getValueParams(test):
 def nextPermutation(indexes, lists, x, y):
     idx = len(indexes)-1
     while idx >= 0:
-        while idx == x or idx == y:
+        while idx in [x, y]:
             idx -= 1
         if idx < 0:
             return False
@@ -87,7 +84,7 @@ def nextPermutation(indexes, lists, x, y):
     return False
 
 def getTestWideName(sname, indexes, lists, x, y):
-    name = sname + "::("
+    name = f"{sname}::("
     for i in range(len(indexes)):
         if i > 0:
             name += ", "
@@ -97,13 +94,17 @@ def getTestWideName(sname, indexes, lists, x, y):
             name += "Y"
         else:
             name += lists[i][indexes[i]]
-    return str(name + ")")
+    return str(f"{name})")
 
 def getTest(stests, x, y, row, col):
-    for pair in stests:
-        if pair[1][x] == row and pair[1][y] == col:
-            return pair[0]
-    return None
+    return next(
+        (
+            pair[0]
+            for pair in stests
+            if pair[1][x] == row and pair[1][y] == col
+        ),
+        None,
+    )
 
 if __name__ == "__main__":
     parser = OptionParser()

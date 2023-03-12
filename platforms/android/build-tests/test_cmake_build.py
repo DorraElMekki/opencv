@@ -55,7 +55,7 @@ class TestCmakeBuild(unittest.TestCase):
         self.bindir = os.path.join(self.workdir, "build")
 
     def shortDescription(self):
-        return "ABI: %s, TOOLCHAIN: %s, LIBSET: %s" % (self.abi, self.toolchain, self.libset)
+        return f"ABI: {self.abi}, TOOLCHAIN: {self.toolchain}, LIBSET: {self.libset}"
 
     def gen_cmakelists(self):
         return CMAKE_TEMPLATE % {"libset": self.libset}
@@ -85,18 +85,18 @@ class TestCmakeBuild(unittest.TestCase):
         cmd = [
             "cmake",
             "-GNinja",
-            "-DOpenCV_DIR=%s" % self.opencv_cmake_path,
-            "-DANDROID_ABI=%s" % self.abi,
-            "-DCMAKE_TOOLCHAIN_FILE=%s" % os.path.join(self.opencv_cmake_path, "android.toolchain.cmake"),
-            "-DANDROID_TOOLCHAIN_NAME=%s" % self.toolchain,
-            self.srcdir
+            f"-DOpenCV_DIR={self.opencv_cmake_path}",
+            f"-DANDROID_ABI={self.abi}",
+            f'-DCMAKE_TOOLCHAIN_FILE={os.path.join(self.opencv_cmake_path, "android.toolchain.cmake")}',
+            f"-DANDROID_TOOLCHAIN_NAME={self.toolchain}",
+            self.srcdir,
         ]
-        log.info("Executing: %s" % cmd)
+        log.info(f"Executing: {cmd}")
         retcode = subprocess.call(cmd)
         self.assertEqual(retcode, 0, "cmake failed")
 
         cmd = ["ninja"]
-        log.info("Executing: %s" % cmd)
+        log.info(f"Executing: {cmd}")
         retcode = subprocess.call(cmd)
         self.assertEqual(retcode, 0, "make failed")
 
@@ -132,8 +132,8 @@ if __name__ == '__main__':
     if args.ndk_path is not None:
         os.environ["ANDROID_NDK"] = os.path.abspath(args.ndk_path)
 
-    print("Using SDK: %s" % os.environ["ANDROID_SDK"])
-    print("Using NDK: %s" % os.environ["ANDROID_NDK"])
+    print(f'Using SDK: {os.environ["ANDROID_SDK"]}')
+    print(f'Using NDK: {os.environ["ANDROID_NDK"]}')
 
     res = unittest.TextTestRunner(verbosity=3).run(suite(os.path.abspath(args.workdir), os.path.abspath(args.opencv_cmake_path)))
     if not res.wasSuccessful():

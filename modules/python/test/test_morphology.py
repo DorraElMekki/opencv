@@ -33,15 +33,15 @@ class morphology_test(NewOpenCVTests):
             iters = 1
             opers = cur_mode.split('/')
             if len(opers) > 1:
-                sz = sz - 10
+                sz -= 10
                 op = opers[sz > 0]
                 sz = abs(sz)
             else:
                 op = opers[0]
             sz = sz*2+1
 
-            str_name = 'MORPH_' + cur_str_mode.upper()
-            oper_name = 'MORPH_' + op.upper()
+            str_name = f'MORPH_{cur_str_mode.upper()}'
+            oper_name = f'MORPH_{op.upper()}'
 
             st = cv.getStructuringElement(getattr(cv, str_name), (sz, sz))
             return cv.morphologyEx(img, getattr(cv, oper_name), st, iterations=iters)

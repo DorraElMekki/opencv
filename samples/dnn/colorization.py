@@ -12,8 +12,7 @@ def parse_args():
     parser.add_argument('--caffemodel', help='Path to colorization_release_v2.caffemodel', required=True)
     parser.add_argument('--kernel', help='Path to pts_in_hull.npy', required=True)
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 if __name__ == '__main__':
     W_in = 224
@@ -32,11 +31,7 @@ if __name__ == '__main__':
     net.getLayer(net.getLayerId('class8_ab')).blobs = [pts_in_hull.astype(np.float32)]
     net.getLayer(net.getLayerId('conv8_313_rh')).blobs = [np.full([1, 313], 2.606, np.float32)]
 
-    if args.input:
-        cap = cv.VideoCapture(args.input)
-    else:
-        cap = cv.VideoCapture(0)
-
+    cap = cv.VideoCapture(args.input) if args.input else cv.VideoCapture(0)
     while cv.waitKey(1) < 0:
         hasFrame, frame = cap.read()
         if not hasFrame:

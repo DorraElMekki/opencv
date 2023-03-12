@@ -99,11 +99,10 @@ def make_umd(opencvjs, cvjs):
 }));
     """ % (content)).lstrip())
 
-if __name__ == "__main__":
-    if len(sys.argv) > 2:
-        opencvjs = sys.argv[1]
-        cvjs = sys.argv[2]
-        if not os.path.isfile(opencvjs):
-            print('opencv.js file not found! Have you compiled the opencv_js module?')
-            exit()
-        make_umd(opencvjs, cvjs);
+if __name__ == "__main__" and len(sys.argv) > 2:
+    opencvjs = sys.argv[1]
+    cvjs = sys.argv[2]
+    if not os.path.isfile(opencvjs):
+        print('opencv.js file not found! Have you compiled the opencv_js module?')
+        exit()
+    make_umd(opencvjs, cvjs);

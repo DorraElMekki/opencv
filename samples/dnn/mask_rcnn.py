@@ -35,7 +35,7 @@ if args.colors:
 legend = None
 def showLegend(classes):
     global legend
-    if not classes is None and legend is None:
+    if classes is not None and legend is None:
         blockHeight = 30
         assert(len(classes) == len(colors))
 
@@ -59,7 +59,7 @@ def drawBox(frame, classId, conf, left, top, right, bottom):
     # Print a label of class.
     if classes:
         assert(classId < len(classes))
-        label = '%s: %s' % (classes[classId], label)
+        label = f'{classes[classId]}: {label}'
 
     labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
     top = max(top, labelSize[1])
@@ -74,7 +74,7 @@ net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
 winName = 'Mask-RCNN in OpenCV'
 cv.namedWindow(winName, cv.WINDOW_NORMAL)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 legend = None
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()
@@ -100,8 +100,10 @@ while cv.waitKey(1) < 0:
     if not colors:
         # Generate colors
         colors = [np.array([0, 0, 0], np.uint8)]
-        for i in range(1, numClasses + 1):
-            colors.append((colors[i - 1] + np.random.randint(0, 256, [3], np.uint8)) / 2)
+        colors.extend(
+            (colors[i - 1] + np.random.randint(0, 256, [3], np.uint8)) / 2
+            for i in range(1, numClasses + 1)
+        )
         del colors[0]
 
     boxesToDraw = []

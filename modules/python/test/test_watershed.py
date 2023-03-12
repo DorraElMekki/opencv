@@ -28,7 +28,10 @@ class watershed_test(NewOpenCVTests):
 
         if refSegments is None:
             refSegments = segments.copy()
-            cv.imwrite(self.extraTestDataPath + '/cv/watershed/wshed_segments.png', refSegments)
+            cv.imwrite(
+                f'{self.extraTestDataPath}/cv/watershed/wshed_segments.png',
+                refSegments,
+            )
 
         self.assertLess(cv.norm(segments - refSegments, cv.NORM_L1) / 255.0, 50)
 

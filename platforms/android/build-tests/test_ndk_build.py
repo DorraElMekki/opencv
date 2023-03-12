@@ -67,19 +67,17 @@ class TestNDKBuild(unittest.TestCase):
         self.cpp2 = "jni_part2.cpp"
 
     def shortDescription(self):
-        return "ABI: %s, LIBTYPE: %s" % (self.abi, self.libtype)
+        return f"ABI: {self.abi}, LIBTYPE: {self.libtype}"
 
     def gen_android_mk(self):
         p = []
-        if self.libtype == "static":
-            p.append("OPENCV_LIB_TYPE := STATIC")
-        elif self.libtype == "shared":
-            p.append("OPENCV_LIB_TYPE := SHARED")
-            p.append("OPENCV_INSTALL_MODULES:=on")
+        if self.libtype == "shared":
+            p.extend(("OPENCV_LIB_TYPE := SHARED", "OPENCV_INSTALL_MODULES:=on"))
         elif self.libtype == "shared_opencv_manager":
-            p.append("OPENCV_LIB_TYPE := SHARED")
-            p.append("OPENCV_INSTALL_MODULES:=off")
-        p.append("include %s" % os.path.join(self.opencv_mk_path, "OpenCV.mk"))
+            p.extend(("OPENCV_LIB_TYPE := SHARED", "OPENCV_INSTALL_MODULES:=off"))
+        elif self.libtype == "static":
+            p.append("OPENCV_LIB_TYPE := STATIC")
+        p.append(f'include {os.path.join(self.opencv_mk_path, "OpenCV.mk")}')
         return TEMPLATE_ANDROID_MK.format(cut = "\n".join(p), cpp1 = self.cpp1, cpp2 = self.cpp2)
 
     def gen_jni_code(self):
@@ -141,7 +139,7 @@ if __name__ == '__main__':
     if args.ndk_path is not None:
         os.environ["ANDROID_NDK"] = os.path.abspath(args.ndk_path)
 
-    print("Using NDK: %s" % os.environ["ANDROID_NDK"])
+    print(f'Using NDK: {os.environ["ANDROID_NDK"]}')
 
     res = unittest.TextTestRunner(verbosity=3).run(suite(os.path.abspath(args.workdir), os.path.abspath(args.opencv_mk_path)))
     if not res.wasSuccessful():

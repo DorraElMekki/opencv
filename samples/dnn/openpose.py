@@ -47,7 +47,7 @@ inHeight = args.height
 
 net = cv.dnn.readNetFromCaffe(args.proto, args.model)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()

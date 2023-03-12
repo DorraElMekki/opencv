@@ -9,14 +9,14 @@ cvtype_re = re.compile("(8U|8S|16U|16S|32S|32F|64F)C(\d{1,3})")
 cvtypes = { '8U': 0, '8S': 1, '16U': 2, '16S': 3, '32S': 4, '32F': 5, '64F': 6 }
 
 convert = lambda text: int(text) if text.isdigit() else text
-keyselector = lambda a: cvtype_re.sub(lambda match: " " + str(cvtypes.get(match.group(1), 7) + (int(match.group(2))-1) * 8) + " ", a)
+keyselector = lambda a: cvtype_re.sub(
+    lambda match: f" {str(cvtypes.get(match.group(1), 7) + (int(match.group(2)) - 1) * 8)} ",
+    a,
+)
 alphanum_keyselector = lambda key: [ convert(c) for c in numeric_re.split(keyselector(key)) ]
 
 def getSetName(tset, idx, columns, short = True):
-    if columns and len(columns) > idx:
-        prefix = columns[idx]
-    else:
-        prefix = None
+    prefix = columns[idx] if columns and len(columns) > idx else None
     if short and prefix:
         return prefix
     name = tset[0].replace(".xml","").replace("_", "\n")
@@ -164,7 +164,12 @@ if __name__ == "__main__":
                 reference = getSetName(reference_set, ref, options.columns)
             else:
                 reference = 'previous'
-            tbl.newColumn(str(i) + '-' + str(ref) + suffix, '%s\nvs\n%s\n(%s)' % (current, reference, description), align='center', cssclass=cssclass)
+            tbl.newColumn(
+                f'{str(i)}-{str(ref)}{suffix}',
+                '%s\nvs\n%s\n(%s)' % (current, reference, description),
+                align='center',
+                cssclass=cssclass,
+            )
 
     if options.calc_cr:
         addHeaderColumns(suffix='$', description='cycles reduction', cssclass='col_cr')

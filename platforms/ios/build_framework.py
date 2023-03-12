@@ -34,7 +34,7 @@ from subprocess import check_call, check_output, CalledProcessError
 IPHONEOS_DEPLOYMENT_TARGET='8.0'  # default, can be changed via command line options or environemnt variable
 
 def execute(cmd, cwd = None):
-    print("Executing: %s in %s" % (cmd, cwd), file=sys.stderr)
+    print(f"Executing: {cmd} in {cwd}", file=sys.stderr)
     print('Executing: ' + ' '.join(cmd))
     retcode = check_call(cmd, cwd = cwd)
     if retcode != 0:
@@ -42,9 +42,8 @@ def execute(cmd, cwd = None):
 
 def getXCodeMajor():
     ret = check_output(["xcodebuild", "-version"])
-    m = re.match(r'Xcode\s+(\d+)\..*', ret, flags=re.IGNORECASE)
-    if m:
-        return int(m.group(1))
+    if m := re.match(r'Xcode\s+(\d+)\..*', ret, flags=re.IGNORECASE):
+        return int(m[1])
     else:
         raise Exception("Failed to parse Xcode version")
 
@@ -66,9 +65,9 @@ class Builder:
     def getBD(self, parent, t):
 
         if len(t[0]) == 1:
-            res = os.path.join(parent, 'build-%s-%s' % (t[0][0].lower(), t[1].lower()))
+            res = os.path.join(parent, f'build-{t[0][0].lower()}-{t[1].lower()}')
         else:
-            res = os.path.join(parent, 'build-%s' % t[1].lower())
+            res = os.path.join(parent, f'build-{t[1].lower()}')
 
         if not os.path.isdir(res):
             os.makedirs(res)
@@ -101,10 +100,14 @@ class Builder:
 
             cmake_flags = []
             if self.contrib:
-                cmake_flags.append("-DOPENCV_EXTRA_MODULES_PATH=%s" % self.contrib)
+                cmake_flags.append(f"-DOPENCV_EXTRA_MODULES_PATH={self.contrib}")
             if xcode_ver >= 7 and t[1] == 'iPhoneOS' and self.bitcodedisabled == False:
-                cmake_flags.append("-DCMAKE_C_FLAGS=-fembed-bitcode")
-                cmake_flags.append("-DCMAKE_CXX_FLAGS=-fembed-bitcode")
+                cmake_flags.extend(
+                    (
+                        "-DCMAKE_C_FLAGS=-fembed-bitcode",
+                        "-DCMAKE_CXX_FLAGS=-fembed-bitcode",
+                    )
+                )
             self.buildOne(t[0], t[1], mainBD, cmake_flags)
 
             if self.dynamic == False:
@@ -116,7 +119,7 @@ class Builder:
             self._build(outdir)
         except Exception as e:
             print("="*60, file=sys.stderr)
-            print("ERROR: %s" % e, file=sys.stderr)
+            print(f"ERROR: {e}", file=sys.stderr)
             print("="*60, file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
             sys.exit(1)
@@ -141,8 +144,8 @@ class Builder:
         ] if self.dynamic else [])
 
         if len(self.exclude) > 0:
-            args += ["-DBUILD_opencv_world=OFF"] if not self.dynamic else []
-            args += ["-DBUILD_opencv_%s=OFF" % m for m in self.exclude]
+            args += [] if self.dynamic else ["-DBUILD_opencv_world=OFF"]
+            args += [f"-DBUILD_opencv_{m}=OFF" for m in self.exclude]
 
         return args
 
@@ -162,13 +165,13 @@ class Builder:
                 buildcmd.append("BITCODE_GENERATION_MODE=bitcode")
 
             for arch in archs:
-                buildcmd.append("-arch")
-                buildcmd.append(arch.lower())
+                buildcmd.extend(("-arch", arch.lower()))
         else:
             arch = ";".join(archs)
             buildcmd += [
-                "IPHONEOS_DEPLOYMENT_TARGET=" + os.environ['IPHONEOS_DEPLOYMENT_TARGET'],
-                "ARCHS=%s" % arch,
+                "IPHONEOS_DEPLOYMENT_TARGET="
+                + os.environ['IPHONEOS_DEPLOYMENT_TARGET'],
+                f"ARCHS={arch}",
             ]
 
         buildcmd += [
@@ -186,8 +189,11 @@ class Builder:
     def buildOne(self, arch, target, builddir, cmakeargs = []):
         # Run cmake
         toolchain = self.getToolchain(arch, target)
-        cmakecmd = self.getCMakeArgs(arch, target) + \
-            (["-DCMAKE_TOOLCHAIN_FILE=%s" % toolchain] if toolchain is not None else [])
+        cmakecmd = self.getCMakeArgs(arch, target) + (
+            [f"-DCMAKE_TOOLCHAIN_FILE={toolchain}"]
+            if toolchain is not None
+            else []
+        )
         if target.lower().startswith("iphoneos"):
             cmakecmd.append("-DCPU_BASELINE=DETECT")
         cmakecmd.append(self.opencv)
@@ -213,7 +219,7 @@ class Builder:
         name = "opencv2"
 
         # set the current dir to the dst root
-        framework_dir = os.path.join(outdir, "%s.framework" % name)
+        framework_dir = os.path.join(outdir, f"{name}.framework")
         if os.path.isdir(framework_dir):
             shutil.rmtree(framework_dir)
         os.makedirs(framework_dir)
@@ -230,9 +236,7 @@ class Builder:
 
         # make universal static lib
         libs = [os.path.join(d, "lib", "Release", libname) for d in builddirs]
-        lipocmd = ["lipo", "-create"]
-        lipocmd.extend(libs)
-        lipocmd.extend(["-o", os.path.join(dstdir, name)])
+        lipocmd = ["lipo", "-create", *libs, *["-o", os.path.join(dstdir, name)]]
         print("Creating universal library from:\n\t%s" % "\n\t".join(libs), file=sys.stderr)
         execute(lipocmd)
 
@@ -261,16 +265,20 @@ class Builder:
 class iOSBuilder(Builder):
 
     def getToolchain(self, arch, target):
-        toolchain = os.path.join(self.opencv, "platforms", "ios", "cmake", "Toolchains", "Toolchain-%s_Xcode.cmake" % target)
-        return toolchain
+        return os.path.join(
+            self.opencv,
+            "platforms",
+            "ios",
+            "cmake",
+            "Toolchains",
+            f"Toolchain-{target}_Xcode.cmake",
+        )
 
     def getCMakeArgs(self, arch, target):
         arch = ";".join(arch)
 
         args = Builder.getCMakeArgs(self, arch, target)
-        args = args + [
-            '-DIOS_ARCH=%s' % arch
-        ]
+        args = (args + [f'-DIOS_ARCH={arch}'])
         return args
 
 
@@ -290,7 +298,7 @@ if __name__ == "__main__":
     os.environ['IPHONEOS_DEPLOYMENT_TARGET'] = args.iphoneos_deployment_target
     print('Using IPHONEOS_DEPLOYMENT_TARGET=' + os.environ['IPHONEOS_DEPLOYMENT_TARGET'])
     iphoneos_archs = args.iphoneos_archs.split(',')
-    print('Using iPhoneOS ARCHS=' + str(iphoneos_archs))
+    print(f'Using iPhoneOS ARCHS={str(iphoneos_archs)}')
 
     b = iOSBuilder(args.opencv, args.contrib, args.dynamic, args.bitcodedisabled, args.without,
         [

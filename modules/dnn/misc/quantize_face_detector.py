@@ -41,11 +41,10 @@ def scale(x, name):
     with tf.variable_scope(name):
         layer = dnnLayer(name)
         w = tf.Variable(layer.blobs[0].flatten(), dtype=dtype, name='mul')
-        if len(layer.blobs) > 1:
-            b = tf.Variable(layer.blobs[1].flatten(), dtype=dtype, name='add')
-            return tf.nn.bias_add(tf.multiply(x, w), b)
-        else:
+        if len(layer.blobs) <= 1:
             return tf.multiply(x, w, name)
+        b = tf.Variable(layer.blobs[1].flatten(), dtype=dtype, name='add')
+        return tf.nn.bias_add(tf.multiply(x, w), b)
 
 def conv(x, name, stride=1, pad='SAME', dilation=1, activ=None):
     with tf.variable_scope(name):

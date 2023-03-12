@@ -45,9 +45,9 @@ def createSSDGraph(modelPath, configPath, outputPath):
     print('Number of classes: %d' % num_classes)
     print('Number of layers: %d' % num_layers)
     print('Scale: [%f-%f]' % (min_scale, max_scale))
-    print('Aspect ratios: %s' % str(aspect_ratios))
-    print('Reduce boxes in the lowest layer: %s' % str(reduce_boxes_in_lowest_layer))
-    print('box predictor: %s' % box_predictor)
+    print(f'Aspect ratios: {aspect_ratios}')
+    print(f'Reduce boxes in the lowest layer: {reduce_boxes_in_lowest_layer}')
+    print(f'box predictor: {box_predictor}')
     print('Input image size: %dx%d' % (image_width, image_height))
 
     # Read the graph.
@@ -86,8 +86,9 @@ def createSSDGraph(modelPath, configPath, outputPath):
                 fusedNodes.append(node)
                 for i, inpOp in enumerate(targetNode[1:]):
                     if isinstance(inpOp, list):
-                        if not node.input[i] in nodesMap or \
-                           not checkSubgraph(nodesMap[node.input[i]], inpOp, inputs, fusedNodes):
+                        if node.input[i] not in nodesMap or not checkSubgraph(
+                            nodesMap[node.input[i]], inpOp, inputs, fusedNodes
+                        ):
                             return False
                     else:
                         inputs[inpOp] = node.input[i]
@@ -120,7 +121,7 @@ def createSSDGraph(modelPath, configPath, outputPath):
     removeIdentity(graph_def)
 
     def to_remove(name, op):
-        return (not op in keepOps) or name.startswith(prefixesToRemove)
+        return op not in keepOps or name.startswith(prefixesToRemove)
 
     removeUnusedNodesAndAttrs(to_remove, graph_def)
 
@@ -158,22 +159,25 @@ def createSSDGraph(modelPath, configPath, outputPath):
                 inpName = 'BoxPredictor_%d/%s/BiasAdd' % (i, label)
             else:
                 if i == 0:
-                    inpName = 'WeightSharedConvolutionalBoxPredictor/%s/BiasAdd' % label
+                    inpName = f'WeightSharedConvolutionalBoxPredictor/{label}/BiasAdd'
                 else:
                     inpName = 'WeightSharedConvolutionalBoxPredictor_%d/%s/BiasAdd' % (i, label)
             flatten.input.append(inpName)
-            flatten.name = inpName + '/Flatten'
+            flatten.name = f'{inpName}/Flatten'
             flatten.op = 'Flatten'
 
             concatInputs.append(flatten.name)
             graph_def.node.extend([flatten])
-        addConcatNode('%s/concat' % label, concatInputs, 'concat/axis_flatten')
+        addConcatNode(f'{label}/concat', concatInputs, 'concat/axis_flatten')
 
     idx = 0
     for node in graph_def.node:
-        if node.name == ('BoxPredictor_%d/BoxEncodingPredictor/Conv2D' % idx) or \
-           node.name == ('WeightSharedConvolutionalBoxPredictor_%d/BoxPredictor/Conv2D' % idx) or \
-           node.name == 'WeightSharedConvolutionalBoxPredictor/BoxPredictor/Conv2D':
+        if node.name in [
+            'BoxPredictor_%d/BoxEncodingPredictor/Conv2D' % idx,
+            'WeightSharedConvolutionalBoxPredictor_%d/BoxPredictor/Conv2D'
+            % idx,
+            'WeightSharedConvolutionalBoxPredictor/BoxPredictor/Conv2D',
+        ]:
             node.addAttr('loc_pred_transposed', True)
             idx += 1
     assert(idx == num_layers)
