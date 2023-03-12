@@ -49,11 +49,10 @@ def intersectionRate(s1, s2):
 
 def filterSquares(squares, square):
 
-    for i in range(len(squares)):
-        if intersectionRate(squares[i], square) > 0.95:
-            return False
-
-    return True
+    return all(
+        intersectionRate(squares[i], square) <= 0.95
+        for i in range(len(squares))
+    )
 
 from tests_common import NewOpenCVTests
 
@@ -88,8 +87,8 @@ class squares_test(NewOpenCVTests):
 
         matches_counter = 0
         for i in range(len(squares)):
-            for j in range(len(testSquares)):
-                if intersectionRate(squares[i], testSquares[j]) > 0.9:
+            for testSquare in testSquares:
+                if intersectionRate(squares[i], testSquare) > 0.9:
                     matches_counter += 1
 
         self.assertGreater(matches_counter / len(testSquares), 0.9)

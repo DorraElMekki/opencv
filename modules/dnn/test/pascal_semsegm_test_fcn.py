@@ -113,14 +113,14 @@ class PASCALDataFetch(DatasetImageFetch):
         self.i = 0
 
         with open(names_file) as f:
-            for l in f.readlines():
+            for l in f:
                 self.names.append(l.rstrip())
 
     @staticmethod
     def read_colors(img_classes_file):
         result = []
         with open(img_classes_file) as f:
-            for l in f.readlines():
+            for l in f:
                 color = np.array(map(int, l.split()[1:]))
                 result.append(DatasetImageFetch.pix_to_c(color))
         return result
@@ -152,17 +152,19 @@ class SemSegmEvaluation:
         self.log = open(log_path, 'w')
 
     def process(self, frameworks, data_fetcher):
-        samples_handled = 0
-
-        conf_mats = [np.zeros((data_fetcher.get_num_classes(), data_fetcher.get_num_classes())) for i in range(len(frameworks))]
+        conf_mats = [
+            np.zeros(
+                (data_fetcher.get_num_classes(), data_fetcher.get_num_classes())
+            )
+            for _ in range(len(frameworks))
+        ]
         blobs_l1_diff = [0] * len(frameworks)
         blobs_l1_diff_count = [0] * len(frameworks)
         blobs_l_inf_diff = [sys.float_info.min] * len(frameworks)
         inference_time = [0.0] * len(frameworks)
 
-        for in_blob, gt in data_fetcher:
+        for samples_handled, (in_blob, gt) in enumerate(data_fetcher, start=1):
             frameworks_out = []
-            samples_handled += 1
             for i in range(len(frameworks)):
                 start = time.time()
                 out = frameworks[i].get_output(in_blob)
@@ -175,14 +177,24 @@ class SemSegmEvaluation:
                 pix_acc, mean_acc, miou = get_metrics(conf_mats[i])
 
                 name = frameworks[i].get_name()
-                print(samples_handled, 'Pixel accuracy, %s:' % name, 100 * pix_acc, file=self.log)
-                print(samples_handled, 'Mean accuracy, %s:' % name, 100 * mean_acc, file=self.log)
-                print(samples_handled, 'Mean IOU, %s:' % name, 100 * miou, file=self.log)
+                print(
+                    samples_handled,
+                    f'Pixel accuracy, {name}:',
+                    100 * pix_acc,
+                    file=self.log,
+                )
+                print(
+                    samples_handled,
+                    f'Mean accuracy, {name}:',
+                    100 * mean_acc,
+                    file=self.log,
+                )
+                print(samples_handled, f'Mean IOU, {name}:', 100 * miou, file=self.log)
                 print("Inference time, ms ", \
-                    frameworks[i].get_name(), inference_time[i] / samples_handled * 1000, file=self.log)
+                        frameworks[i].get_name(), inference_time[i] / samples_handled * 1000, file=self.log)
 
             for i in range(1, len(frameworks)):
-                log_str = frameworks[0].get_name() + " vs " + frameworks[i].get_name() + ':'
+                log_str = f"{frameworks[0].get_name()} vs {frameworks[i].get_name()}:"
                 diff = np.abs(frameworks_out[0] - frameworks_out[i])
                 l1_diff = np.sum(diff) / diff.size
                 print(samples_handled, "L1 difference", log_str, l1_diff, file=self.log)
@@ -195,7 +207,7 @@ class SemSegmEvaluation:
             self.log.flush()
 
         for i in range(1, len(blobs_l1_diff)):
-            log_str = frameworks[0].get_name() + " vs " + frameworks[i].get_name() + ':'
+            log_str = f"{frameworks[0].get_name()} vs {frameworks[i].get_name()}:"
             print('Final l1 diff', log_str, blobs_l1_diff[i] / blobs_l1_diff_count[i], file=self.log)
 
 if __name__ == "__main__":

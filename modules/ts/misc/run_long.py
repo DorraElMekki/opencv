@@ -70,7 +70,7 @@ LONG_TESTS_DEBUG_VALGRIND = [
 
 def longTestFilter(data, module=None):
     res = ['*', '-'] + [v for m, v, _time in data if module is None or m == module]
-    return '--gtest_filter={}'.format(':'.join(res))
+    return f"--gtest_filter={':'.join(res)}"
 
 
 # Parse one xml file, filter out tests which took less than 'timeLimit' seconds

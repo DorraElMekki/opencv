@@ -51,11 +51,15 @@ config = readTextMessage(args.config)
 if 'model' in config:
     print('TensorFlow Object Detection API config detected')
     if 'ssd' in config['model'][0]:
-        print('Preparing text graph representation for SSD model: ' + args.out_tf_graph)
+        print(
+            f'Preparing text graph representation for SSD model: {args.out_tf_graph}'
+        )
         createSSDGraph(args.model, args.config, args.out_tf_graph)
         args.config = args.out_tf_graph
     elif 'faster_rcnn' in config['model'][0]:
-        print('Preparing text graph representation for Faster-RCNN model: ' + args.out_tf_graph)
+        print(
+            f'Preparing text graph representation for Faster-RCNN model: {args.out_tf_graph}'
+        )
         createFasterRCNNGraph(args.model, args.config, args.out_tf_graph)
         args.config = args.out_tf_graph
 
@@ -88,7 +92,7 @@ def postprocess(frame, outs):
         # Print a label of class.
         if classes:
             assert(classId < len(classes))
-            label = '%s: %s' % (classes[classId], label)
+            label = f'{classes[classId]}: {label}'
 
         labelSize, baseLine = cv.getTextSize(label, cv.FONT_HERSHEY_SIMPLEX, 0.5, 1)
         top = max(top, labelSize[1])
@@ -159,7 +163,7 @@ def postprocess(frame, outs):
                     confidences.append(float(confidence))
                     boxes.append([left, top, width, height])
     else:
-        print('Unknown output layer type: ' + lastLayer.type)
+        print(f'Unknown output layer type: {lastLayer.type}')
         exit()
 
     indices = cv.dnn.NMSBoxes(boxes, confidences, confThreshold, nmsThreshold)
@@ -182,7 +186,7 @@ def callback(pos):
 
 cv.createTrackbar('Confidence threshold, %', winName, int(confThreshold * 100), 99, callback)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()
     if not hasFrame:
@@ -193,8 +197,8 @@ while cv.waitKey(1) < 0:
     frameWidth = frame.shape[1]
 
     # Create a 4D blob from a frame.
-    inpWidth = args.width if args.width else frameWidth
-    inpHeight = args.height if args.height else frameHeight
+    inpWidth = args.width or frameWidth
+    inpHeight = args.height or frameHeight
     blob = cv.dnn.blobFromImage(frame, args.scale, (inpWidth, inpHeight), args.mean, args.rgb, crop=False)
 
     # Run a model

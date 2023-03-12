@@ -56,12 +56,12 @@ class TestSceneRender():
         if self.foreground is not None:
             tmp = np.array(self.center) + np.array((self.getXOffset(time), self.getYOffset(time)))
             x0, y0 = tmp
-            x1, y1 = tmp + self.foreground.shape[0:2]
-            return np.array([y0, x0, y1, x1])
+            x1, y1 = tmp + self.foreground.shape[:2]
         else:
             x0, y0 = self.initialRect[0] + np.array((self.getXOffset(time), self.getYOffset(time)))
             x1, y1 = self.initialRect[2] + np.array((self.getXOffset(time), self.getYOffset(time)))
-            return np.array([y0, x0, y1, x1])
+
+        return np.array([y0, x0, y1, x1])
 
     def getCurrentRect(self):
 

@@ -40,11 +40,23 @@ def add_argument(zoo, parser, name, help, required=False, default=None, type=Non
     if action == 'store_true':
         default = 1 if default == 'true' else (0 if default == 'false' else default)
         assert(default is None or default == 0 or default == 1)
-        parser.add_argument('--' + name, required=required, help=help, default=bool(default),
-                            action=action)
+        parser.add_argument(
+            f'--{name}',
+            required=required,
+            help=help,
+            default=bool(default),
+            action=action,
+        )
     else:
-        parser.add_argument('--' + name, required=required, help=help, default=default,
-                            action=action, nargs=nargs, type=type)
+        parser.add_argument(
+            f'--{name}',
+            required=required,
+            help=help,
+            default=default,
+            action=action,
+            nargs=nargs,
+            type=type,
+        )
 
 
 def add_preproc_args(zoo, parser, sample):
@@ -82,27 +94,32 @@ def add_preproc_args(zoo, parser, sample):
 
 
 def findFile(filename):
-    if filename:
-        if os.path.exists(filename):
-            return filename
+    if not filename:
+        return
+    if os.path.exists(filename):
+        return filename
 
-        samplesDataDir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                      '..',
-                                      'data',
-                                      'dnn')
-        if os.path.exists(os.path.join(samplesDataDir, filename)):
-            return os.path.join(samplesDataDir, filename)
+    samplesDataDir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  '..',
+                                  'data',
+                                  'dnn')
+    if os.path.exists(os.path.join(samplesDataDir, filename)):
+        return os.path.join(samplesDataDir, filename)
 
-        for path in ['OPENCV_DNN_TEST_DATA_PATH', 'OPENCV_TEST_DATA_PATH']:
-            try:
-                extraPath = os.environ[path]
-                absPath = os.path.join(extraPath, 'dnn', filename)
-                if os.path.exists(absPath):
-                    return absPath
-            except KeyError:
-                pass
+    for path in ['OPENCV_DNN_TEST_DATA_PATH', 'OPENCV_TEST_DATA_PATH']:
+        try:
+            extraPath = os.environ[path]
+            absPath = os.path.join(extraPath, 'dnn', filename)
+            if os.path.exists(absPath):
+                return absPath
+        except KeyError:
+            pass
 
-        print('File ' + filename + ' not found! Please specify a path to '
-              '/opencv_extra/testdata in OPENCV_DNN_TEST_DATA_PATH environment '
-              'variable or pass a full path to model.')
-        exit(0)
+    print(
+        (
+            f'File {filename}' + ' not found! Please specify a path to '
+            '/opencv_extra/testdata in OPENCV_DNN_TEST_DATA_PATH environment '
+            'variable or pass a full path to model.'
+        )
+    )
+    exit(0)

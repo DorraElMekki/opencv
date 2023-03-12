@@ -36,8 +36,6 @@ class Bindings(NewOpenCVTests):
             self.assertEqual("Dead code", 0)
         except cv.error as _e:
             self.assertEqual(handler_called[0], True)
-            pass
-
         cv.redirectError(None)
         try:
             cv.imshow("", None) # This causes an assert

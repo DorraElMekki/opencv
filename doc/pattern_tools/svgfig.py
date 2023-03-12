@@ -48,8 +48,7 @@ if re.search("windows", platform.system(), re.I):
 
 _default_fileName = "tmp.svg"
 
-_hacks = {}
-_hacks["inkscape-text-vertical-shift"] = False
+_hacks = {"inkscape-text-vertical-shift": False}
 
 
 def rgb(r, g, b, maximum=1.):
@@ -141,31 +140,28 @@ class SVG:
     [1, 0]                       <tspan (1 sub) />
     """
     def __init__(self, *t_sub, **attr):
-        if len(t_sub) == 0:
-            raise TypeError( "SVG element must have a t (SVG type)")
+      if not t_sub:
+        raise TypeError( "SVG element must have a t (SVG type)")
 
-        # first argument is t (SVG type)
-        self.t = t_sub[0]
-        # the rest are sub-elements
-        self.sub = list(t_sub[1:])
+      # first argument is t (SVG type)
+      self.t = t_sub[0]
+      # the rest are sub-elements
+      self.sub = list(t_sub[1:])
 
-        # keyword arguments are attributes
-        # need to preprocess to handle differences between SVG and Python syntax
-        self.attr = attr_preprocess(attr)
+      # keyword arguments are attributes
+      # need to preprocess to handle differences between SVG and Python syntax
+      self.attr = attr_preprocess(attr)
 
     def __getitem__(self, ti):
-        """Index is a list that descends tree, returning a sub-element if
+      """Index is a list that descends tree, returning a sub-element if
         it ends with a number and an attribute if it ends with a string."""
-        obj = self
-        if isinstance(ti, (list, tuple)):
-            for i in ti[:-1]:
-                obj = obj[i]
-            ti = ti[-1]
+      obj = self
+      if isinstance(ti, (list, tuple)):
+          for i in ti[:-1]:
+              obj = obj[i]
+          ti = ti[-1]
 
-        if isinstance(ti, (int, long, slice)):
-            return obj.sub[ti]
-        else:
-            return obj.attr[ti]
+      return obj.sub[ti] if isinstance(ti, (int, long, slice)) else obj.attr[ti]
 
     def __setitem__(self, ti, value):
         """Index is a list that descends tree, returning a sub-element if
@@ -216,20 +212,17 @@ class SVG:
         self.sub.append(x)
 
     def prepend(self, x):
-        """Prepends x to the list of sub-elements (drawn first may be
+      """Prepends x to the list of sub-elements (drawn first may be
         overlapped by other primitives)."""
-        self.sub[0:0] = [x]
+      self.sub[:0] = [x]
 
     def extend(self, x):
         """Extends list of sub-elements by a list x."""
         self.sub.extend(x)
 
     def clone(self, shallow=False):
-        """Deep copy of SVG tree.  Set shallow=True for a shallow copy."""
-        if shallow:
-            return copy.copy(self)
-        else:
-            return copy.deepcopy(self)
+      """Deep copy of SVG tree.  Set shallow=True for a shallow copy."""
+      return copy.copy(self) if shallow else copy.deepcopy(self)
 
     ### nested class
     class SVGDepthIterator:
@@ -245,25 +238,27 @@ class SVG:
             return self
 
         def next(self):
-            if not self.shown:
-                self.shown = True
-                if self.ti != ():
-                    return self.ti, self.svg
+          if not self.shown:
+              self.shown = True
+              if self.ti != ():
+                  return self.ti, self.svg
 
-            if not isinstance(self.svg, SVG):
-                raise StopIteration
-            if self.depth_limit is not None and len(self.ti) >= self.depth_limit:
-                raise StopIteration
+          if not isinstance(self.svg, SVG):
+              raise StopIteration
+          if self.depth_limit is not None and len(self.ti) >= self.depth_limit:
+              raise StopIteration
 
-            if "iterators" not in self.__dict__:
-                self.iterators = []
-                for i, s in enumerate(self.svg.sub):
-                    self.iterators.append(self.__class__(s, self.ti + (i,), self.depth_limit))
-                for k, s in self.svg.attr.items():
-                    self.iterators.append(self.__class__(s, self.ti + (k,), self.depth_limit))
-                self.iterators = itertools.chain(*self.iterators)
+          if "iterators" not in self.__dict__:
+            self.iterators = []
+            self.iterators.extend(
+                self.__class__(s, self.ti + (i, ), self.depth_limit)
+                for i, s in enumerate(self.svg.sub))
+            self.iterators.extend(
+                self.__class__(s, self.ti + (k, ), self.depth_limit)
+                for k, s in self.svg.attr.items())
+            self.iterators = itertools.chain(*self.iterators)
 
-            return self.iterators.next()
+          return self.iterators.next()
     ### end nested class
 
     def depth_first(self, depth_limit=None):
@@ -282,26 +277,23 @@ class SVG:
         return self.depth_first()
 
     def items(self, sub=True, attr=True, text=True):
-        """Get a recursively-generated list of tree-index, sub-element/attribute pairs.
+      """Get a recursively-generated list of tree-index, sub-element/attribute pairs.
 
         If sub == False, do not show sub-elements.
         If attr == False, do not show attributes.
         If text == False, do not show text/Unicode sub-elements.
         """
-        output = []
-        for ti, s in self:
-            show = False
-            if isinstance(ti[-1], (int, long)):
-                if isinstance(s, basestring):
-                    show = text
-                else:
-                    show = sub
-            else:
-                show = attr
+      output = []
+      for ti, s in self:
+        show = False
+        if isinstance(ti[-1], (int, long)):
+          show = text if isinstance(s, basestring) else sub
+        else:
+          show = attr
 
-            if show:
-                output.append((ti, s))
-        return output
+        if show:
+            output.append((ti, s))
+      return output
 
     def keys(self, sub=True, attr=True, text=True):
         """Get a recursively-generated list of tree-indexes.
@@ -329,7 +321,7 @@ class SVG:
         return self.tree(sub=True, attr=False, text=False)
 
     def tree(self, depth_limit=None, sub=True, attr=True, text=True, tree_width=20, obj_width=80):
-        """Print (actually, return a string of) the tree in a form useful for browsing.
+      """Print (actually, return a string of) the tree in a form useful for browsing.
 
         If depth_limit == a number, stop recursion at that depth.
         If sub == False, do not show sub-elements.
@@ -338,31 +330,23 @@ class SVG:
         tree_width is the number of characters reserved for printing tree indexes.
         obj_width is the number of characters reserved for printing sub-elements/attributes.
         """
-        output = []
+      line = f'{"%%-%ds" % tree_width % repr(None)} {"%%-%ds" % obj_width % repr(self)[:obj_width]}'
+      output = [line]
+      for ti, s in self.depth_first(depth_limit):
+        show = False
+        if isinstance(ti[-1], (int, long)):
+          show = text if isinstance(s, basestring) else sub
+        else:
+          show = attr
 
-        line = "%s %s" % (("%%-%ds" % tree_width) % repr(None),
-                          ("%%-%ds" % obj_width) % (repr(self))[0:obj_width])
-        output.append(line)
+        if show:
+          line = f'{"%%-%ds" % tree_width % repr(list(ti))} {"%%-%ds" % obj_width % ("    " * len(ti) + repr(s))[:obj_width]}'
+          output.append(line)
 
-        for ti, s in self.depth_first(depth_limit):
-            show = False
-            if isinstance(ti[-1], (int, long)):
-                if isinstance(s, basestring):
-                    show = text
-                else:
-                    show = sub
-            else:
-                show = attr
-
-            if show:
-                line = "%s %s" % (("%%-%ds" % tree_width) % repr(list(ti)),
-                                  ("%%-%ds" % obj_width) % ("    "*len(ti) + repr(s))[0:obj_width])
-                output.append(line)
-
-        return "\n".join(output)
+      return "\n".join(output)
 
     def xml(self, indent=u"    ", newl=u"\n", depth_limit=None, depth=0):
-        """Get an XML representation of the SVG.
+      """Get an XML representation of the SVG.
 
         indent      string used for indenting
         newl        string used for newlines
@@ -371,83 +355,78 @@ class SVG:
 
         print svg.xml()
         """
-        attrstr = []
-        for n, v in self.attr.items():
-            if isinstance(v, dict):
-                v = u"; ".join([u"%s:%s" % (ni, vi) for ni, vi in v.items()])
-            elif isinstance(v, (list, tuple)):
-                v = u", ".join(v)
-            attrstr.append(u" %s=%s" % (n, repr(v)))
-        attrstr = u"".join(attrstr)
+      attrstr = []
+      for n, v in self.attr.items():
+        if isinstance(v, dict):
+          v = u"; ".join([f"{ni}:{vi}" for ni, vi in v.items()])
+        elif isinstance(v, (list, tuple)):
+            v = u", ".join(v)
+        attrstr.append(f" {n}={repr(v)}")
+      attrstr = u"".join(attrstr)
 
-        if len(self.sub) == 0:
-            return u"%s<%s%s />" % (indent * depth, self.t, attrstr)
+      if len(self.sub) == 0:
+        return f"{indent * depth}<{self.t}{attrstr} />"
 
-        if depth_limit is None or depth_limit > depth:
-            substr = []
-            for s in self.sub:
-                if isinstance(s, SVG):
-                    substr.append(s.xml(indent, newl, depth_limit, depth + 1) + newl)
-                elif isinstance(s, basestring):
-                    substr.append(u"%s%s%s" % (indent * (depth + 1), s, newl))
-                else:
-                    substr.append("%s%s%s" % (indent * (depth + 1), repr(s), newl))
-            substr = u"".join(substr)
-
-            return u"%s<%s%s>%s%s%s</%s>" % (indent * depth, self.t, attrstr, newl, substr, indent * depth, self.t)
-
+      if depth_limit is not None and depth_limit <= depth:
+        return u"%s<%s (%d sub)%s />" % (indent * depth, self.t, len(self.sub), attrstr)
+      substr = []
+      for s in self.sub:
+        if isinstance(s, SVG):
+          substr.append(s.xml(indent, newl, depth_limit, depth + 1) + newl)
+        elif isinstance(s, basestring):
+          substr.append(f"{indent * (depth + 1)}{s}{newl}")
         else:
-            return u"%s<%s (%d sub)%s />" % (indent * depth, self.t, len(self.sub), attrstr)
+          substr.append(f"{indent * (depth + 1)}{repr(s)}{newl}")
+      substr = u"".join(substr)
+
+      return f"{indent * depth}<{self.t}{attrstr}>{newl}{substr}{indent * depth}</{self.t}>"
 
     def standalone_xml(self, indent=u"    ", newl=u"\n", encoding=u"utf-8"):
-        """Get an XML representation of the SVG that can be saved/rendered.
+      """Get an XML representation of the SVG that can be saved/rendered.
 
         indent      string used for indenting
         newl        string used for newlines
         """
 
-        if self.t == "svg":
-            top = self
-        else:
-            top = canvas(self)
-        return u"""\
+      top = self if self.t == "svg" else canvas(self)
+      return u"""\
 <?xml version="1.0" encoding="%s" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 
 """ % encoding + (u"".join(top.__standalone_xml(indent, newl)))  # end of return statement
 
     def __standalone_xml(self, indent, newl):
-        output = [u"<%s" % self.t]
+      output = [f"<{self.t}"]
 
-        for n, v in self.attr.items():
-            if isinstance(v, dict):
-                v = u"; ".join([u"%s:%s" % (ni, vi) for ni, vi in v.items()])
-            elif isinstance(v, (list, tuple)):
-                v = u", ".join(v)
-            output.append(u' %s="%s"' % (n, v))
+      for n, v in self.attr.items():
+        if isinstance(v, dict):
+          v = u"; ".join([f"{ni}:{vi}" for ni, vi in v.items()])
+        elif isinstance(v, (list, tuple)):
+            v = u", ".join(v)
+        output.append(f' {n}="{v}"')
 
-        if len(self.sub) == 0:
-            output.append(u" />%s%s" % (newl, newl))
-            return output
-
-        elif self.t == "text" or self.t == "tspan" or self.t == "style":
-            output.append(u">")
-
-        else:
-            output.append(u">%s%s" % (newl, newl))
-
-        for s in self.sub:
-            if isinstance(s, SVG):
-                output.extend(s.__standalone_xml(indent, newl))
-            else:
-                output.append(unicode(s))
-
-        if self.t == "tspan":
-            output.append(u"</%s>" % self.t)
-        else:
-            output.append(u"</%s>%s%s" % (self.t, newl, newl))
-
+      if len(self.sub) == 0:
+        output.append(f" />{newl}{newl}")
         return output
+
+      elif self.t in ["text", "tspan", "style"]:
+        output.append(u">")
+
+      else:
+        output.append(f">{newl}{newl}")
+
+      for s in self.sub:
+          if isinstance(s, SVG):
+              output.extend(s.__standalone_xml(indent, newl))
+          else:
+              output.append(unicode(s))
+
+      if self.t == "tspan":
+        output.append(f"</{self.t}>")
+      else:
+        output.append(f"</{self.t}>{newl}{newl}")
+
+      return output
 
     def interpret_fileName(self, fileName=None):
         if fileName is None:
@@ -457,7 +436,7 @@ class SVG:
         return fileName
 
     def save(self, fileName=None, encoding="utf-8", compresslevel=None):
-        """Save to a file for viewing.  Note that svg.save() overwrites the file named _default_fileName.
+      """Save to a file for viewing.  Note that svg.save() overwrites the file named _default_fileName.
 
         fileName        default=None            note that _default_fileName will be overwritten if
                                                 no fileName is specified. If the extension
@@ -467,23 +446,21 @@ class SVG:
                                                 compression level (1-9, 1 being fastest and 9 most
                                                 thorough)
         """
-        fileName = self.interpret_fileName(fileName)
+      fileName = self.interpret_fileName(fileName)
 
-        if compresslevel is not None or re.search(r"\.svgz$", fileName, re.I) or re.search(r"\.gz$", fileName, re.I):
-            import gzip
-            if compresslevel is None:
-                f = gzip.GzipFile(fileName, "w")
-            else:
-                f = gzip.GzipFile(fileName, "w", compresslevel)
-
-            f = codecs.EncodedFile(f, "utf-8", encoding)
-            f.write(self.standalone_xml(encoding=encoding))
-            f.close()
-
+      if compresslevel is not None or re.search(r"\.svgz$", fileName, re.I) or re.search(r"\.gz$", fileName, re.I):
+        import gzip
+        if compresslevel is None:
+            f = gzip.GzipFile(fileName, "w")
         else:
-            f = codecs.open(fileName, "w", encoding=encoding)
-            f.write(self.standalone_xml(encoding=encoding))
-            f.close()
+            f = gzip.GzipFile(fileName, "w", compresslevel)
+
+        f = codecs.EncodedFile(f, "utf-8", encoding)
+      else:
+        f = codecs.open(fileName, "w", encoding=encoding)
+
+      f.write(self.standalone_xml(encoding=encoding))
+      f.close()
 
     def inkview(self, fileName=None, encoding="utf-8"):
         """View in "inkview", assuming that program is available on your system.
@@ -539,7 +516,7 @@ _canvas_defaults = {"width": "400px",
                    }
 
 def canvas(*sub, **attr):
-    """Creates a top-level SVG object, allowing the user to control the
+  """Creates a top-level SVG object, allowing the user to control the
     image size and aspect ratio.
 
     canvas(sub, sub, sub..., attribute=value)
@@ -558,13 +535,11 @@ def canvas(*sub, **attr):
     style           "stroke:black; fill:none; stroke-width:0.5pt; stroke-linejoin:round; text-anchor:middle"
     font-family     "Helvetica,Arial,FreeSans?,Sans,sans,sans-serif"
     """
-    attributes = dict(_canvas_defaults)
-    attributes.update(attr)
-
-    if sub is None or sub == ():
-        return SVG("svg", **attributes)
-    else:
-        return SVG("svg", *sub, **attributes)
+  attributes = dict(_canvas_defaults) | attr
+  if sub is None or not sub:
+    return SVG("svg", **attributes)
+  else:
+    return SVG("svg", *sub, **attributes)
 
 def canvas_outline(*sub, **attr):
     """Same as canvas(), but draws an outline around the drawable area,
@@ -609,51 +584,54 @@ def load(fileName):
     return load_stream(open(fileName))
 
 def load_stream(stream):
-    """Loads an SVG image from a stream (can be a string or a file object)."""
+  """Loads an SVG image from a stream (can be a string or a file object)."""
 
-    from xml.sax import handler, make_parser
-    from xml.sax.handler import feature_namespaces, feature_external_ges, feature_external_pes
+  from xml.sax import handler, make_parser
+  from xml.sax.handler import feature_namespaces, feature_external_ges, feature_external_pes
 
-    class ContentHandler(handler.ContentHandler):
-        def __init__(self):
-            self.stack = []
-            self.output = None
-            self.all_whitespace = re.compile(r"^\s*$")
 
-        def startElement(self, name, attr):
-            s = SVG(name)
-            s.attr = dict(attr.items())
-            if len(self.stack) > 0:
-                last = self.stack[-1]
-                last.sub.append(s)
-            self.stack.append(s)
 
-        def characters(self, ch):
-            if not isinstance(ch, basestring) or self.all_whitespace.match(ch) is None:
-                if len(self.stack) > 0:
-                    last = self.stack[-1]
-                    if len(last.sub) > 0 and isinstance(last.sub[-1], basestring):
-                        last.sub[-1] = last.sub[-1] + "\n" + ch
-                    else:
-                        last.sub.append(ch)
+  class ContentHandler(handler.ContentHandler):
+    def __init__(self):
+        self.stack = []
+        self.output = None
+        self.all_whitespace = re.compile(r"^\s*$")
 
-        def endElement(self, name):
-            if len(self.stack) > 0:
-                last = self.stack[-1]
-                if (isinstance(last, SVG) and last.t == "style" and
-                    "type" in last.attr and last.attr["type"] == "text/css" and
-                    len(last.sub) == 1 and isinstance(last.sub[0], basestring)):
-                    last.sub[0] = "<![CDATA[\n" + last.sub[0] + "]]>"
+    def startElement(self, name, attr):
+        s = SVG(name)
+        s.attr = dict(attr.items())
+        if len(self.stack) > 0:
+            last = self.stack[-1]
+            last.sub.append(s)
+        self.stack.append(s)
 
-            self.output = self.stack.pop()
+    def characters(self, ch):
+      if (not isinstance(ch, basestring)
+          or self.all_whitespace.match(ch) is None) and len(self.stack) > 0:
+        last = self.stack[-1]
+        if len(last.sub) > 0 and isinstance(last.sub[-1], basestring):
+            last.sub[-1] = last.sub[-1] + "\n" + ch
+        else:
+            last.sub.append(ch)
 
-    ch = ContentHandler()
-    parser = make_parser()
-    parser.setContentHandler(ch)
-    parser.setFeature(feature_namespaces, 0)
-    parser.setFeature(feature_external_ges, 0)
-    parser.parse(stream)
-    return ch.output
+    def endElement(self, name):
+        if len(self.stack) > 0:
+            last = self.stack[-1]
+            if (isinstance(last, SVG) and last.t == "style" and
+                "type" in last.attr and last.attr["type"] == "text/css" and
+                len(last.sub) == 1 and isinstance(last.sub[0], basestring)):
+                last.sub[0] = "<![CDATA[\n" + last.sub[0] + "]]>"
+
+        self.output = self.stack.pop()
+
+
+  ch = ContentHandler()
+  parser = make_parser()
+  parser.setContentHandler(ch)
+  parser.setFeature(feature_namespaces, 0)
+  parser.setFeature(feature_external_ges, 0)
+  parser.parse(stream)
+  return ch.output
 
 ######################################################################
 def set_func_name(f, name):
@@ -665,7 +643,7 @@ def set_func_name(f, name):
         pass
 
 def totrans(expr, vars=("x", "y"), globals=None, locals=None):
-    """Converts to a coordinate transformation (a function that accepts
+  """Converts to a coordinate transformation (a function that accepts
     two arguments and returns two values).
 
     expr       required                  a string expression or a function
@@ -675,42 +653,42 @@ def totrans(expr, vars=("x", "y"), globals=None, locals=None):
     globals    default=None              dict of global variables
     locals     default=None              dict of local variables
     """
-    if locals is None:
-        locals = {}  # python 2.3's eval() won't accept None
+  if locals is None:
+      locals = {}  # python 2.3's eval() won't accept None
 
-    if callable(expr):
-        if expr.func_code.co_argcount == 2:
-            return expr
+  if callable(expr):
+      if expr.func_code.co_argcount == 2:
+          return expr
 
-        elif expr.func_code.co_argcount == 1:
-            split = lambda z: (z.real, z.imag)
-            output = lambda x, y: split(expr(x + y*1j))
-            set_func_name(output, expr.func_name)
-            return output
+      elif expr.func_code.co_argcount == 1:
+          split = lambda z: (z.real, z.imag)
+          output = lambda x, y: split(expr(x + y*1j))
+          set_func_name(output, expr.func_name)
+          return output
 
-        else:
-            raise TypeError( "must be a function of 2 or 1 variables")
+      else:
+          raise TypeError( "must be a function of 2 or 1 variables")
 
-    if len(vars) == 2:
-        g = math.__dict__
-        if globals is not None:
-            g.update(globals)
-        output = eval("lambda %s, %s: (%s)" % (vars[0], vars[1], expr), g, locals)
-        set_func_name(output, "%s,%s -> %s" % (vars[0], vars[1], expr))
-        return output
+  if len(vars) == 2:
+    g = math.__dict__
+    if globals is not None:
+        g.update(globals)
+    output = eval(f"lambda {vars[0]}, {vars[1]}: ({expr})", g, locals)
+    set_func_name(output, f"{vars[0]},{vars[1]} -> {expr}")
+    return output
 
-    elif len(vars) == 1:
-        g = cmath.__dict__
-        if globals is not None:
-            g.update(globals)
-        output = eval("lambda %s: (%s)" % (vars[0], expr), g, locals)
-        split = lambda z: (z.real, z.imag)
-        output2 = lambda x, y: split(output(x + y*1j))
-        set_func_name(output2, "%s -> %s" % (vars[0], expr))
-        return output2
+  elif len(vars) == 1:
+    g = cmath.__dict__
+    if globals is not None:
+        g.update(globals)
+    output = eval(f"lambda {vars[0]}: ({expr})", g, locals)
+    split = lambda z: (z.real, z.imag)
+    output2 = lambda x, y: split(output(x + y*1j))
+    set_func_name(output2, f"{vars[0]} -> {expr}")
+    return output2
 
-    else:
-        raise TypeError( "vars must have 2 or 1 elements")
+  else:
+    raise TypeError( "vars must have 2 or 1 elements")
 
 
 def window(xmin, xmax, ymin, ymax, x=0, y=0, width=100, height=100,
@@ -820,52 +798,49 @@ class Fig:
             return "<Fig (%d items) %s>" % (len(self.d), self.trans.func_name)
 
     def __init__(self, *d, **kwds):
-        self.d = list(d)
-        defaults = {"trans": None, }
-        defaults.update(kwds)
-        kwds = defaults
+      self.d = list(d)
+      defaults = {"trans": None, } | kwds
+      kwds = defaults
 
-        self.trans = kwds["trans"]; del kwds["trans"]
-        if len(kwds) != 0:
-            raise TypeError ("Fig() got unexpected keyword arguments %s" % kwds.keys())
+      self.trans = kwds["trans"]
+      del kwds["trans"]
+      if kwds:
+        raise TypeError(f"Fig() got unexpected keyword arguments {kwds.keys()}")
 
     def SVG(self, trans=None):
-        """Apply the transformation "trans" and return an SVG object.
+      """Apply the transformation "trans" and return an SVG object.
 
         Coordinate transformations in nested Figs will be composed.
         """
 
-        if trans is None:
-            trans = self.trans
-        if isinstance(trans, basestring):
-            trans = totrans(trans)
+      if trans is None:
+          trans = self.trans
+      if isinstance(trans, basestring):
+          trans = totrans(trans)
 
-        output = SVG("g")
-        for s in self.d:
-            if isinstance(s, SVG):
-                output.append(s)
+      output = SVG("g")
+      for s in self.d:
+        if isinstance(s, SVG):
+          output.append(s)
 
-            elif isinstance(s, Fig):
-                strans = s.trans
-                if isinstance(strans, basestring):
-                    strans = totrans(strans)
+        elif isinstance(s, Fig):
+            strans = s.trans
+            if isinstance(strans, basestring):
+                strans = totrans(strans)
 
-                if trans is None:
-                    subtrans = strans
-                elif strans is None:
-                    subtrans = trans
-                else:
-                    subtrans = lambda x, y: trans(*strans(x, y))
-
-                output.sub += s.SVG(subtrans).sub
-
-            elif s is None:
-                pass
-
+            if trans is None:
+                subtrans = strans
+            elif strans is None:
+                subtrans = trans
             else:
-                output.append(s.SVG(trans))
+                subtrans = lambda x, y: trans(*strans(x, y))
 
-        return output
+            output.sub += s.SVG(subtrans).sub
+
+        elif s is not None:
+          output.append(s.SVG(trans))
+
+      return output
 
 
 class Plot:
@@ -909,43 +884,77 @@ class Plot:
             return "<Plot (%d items) %s>" % (len(self.d), self.trans.func_name)
 
     def __init__(self, xmin, xmax, ymin, ymax, *d, **kwds):
-        self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
-        self.d = list(d)
-        defaults = {"trans": None,
-                    "x": 5, "y": 5, "width": 90, "height": 90,
-                    "flipx": False, "flipy": True,
-                    "minusInfinity": -1000,
-                    "atx": 0, "xticks": -10, "xminiticks": True, "xlabels": True, "xlogbase": None,
-                    "aty": 0, "yticks": -10, "yminiticks": True, "ylabels": True, "ylogbase": None,
-                    "arrows": None,
-                    "text_attr": {}, "axis_attr": {},
-                   }
-        defaults.update(kwds)
-        kwds = defaults
+      self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
+      self.d = list(d)
+      defaults = {
+          "trans": None,
+          "x": 5,
+          "y": 5,
+          "width": 90,
+          "height": 90,
+          "flipx": False,
+          "flipy": True,
+          "minusInfinity": -1000,
+          "atx": 0,
+          "xticks": -10,
+          "xminiticks": True,
+          "xlabels": True,
+          "xlogbase": None,
+          "aty": 0,
+          "yticks": -10,
+          "yminiticks": True,
+          "ylabels": True,
+          "ylogbase": None,
+          "arrows": None,
+          "text_attr": {},
+          "axis_attr": {},
+      } | kwds
+      kwds = defaults
 
-        self.trans = kwds["trans"]; del kwds["trans"]
-        self.x = kwds["x"]; del kwds["x"]
-        self.y = kwds["y"]; del kwds["y"]
-        self.width = kwds["width"]; del kwds["width"]
-        self.height = kwds["height"]; del kwds["height"]
-        self.flipx = kwds["flipx"]; del kwds["flipx"]
-        self.flipy = kwds["flipy"]; del kwds["flipy"]
-        self.minusInfinity = kwds["minusInfinity"]; del kwds["minusInfinity"]
-        self.atx = kwds["atx"]; del kwds["atx"]
-        self.xticks = kwds["xticks"]; del kwds["xticks"]
-        self.xminiticks = kwds["xminiticks"]; del kwds["xminiticks"]
-        self.xlabels = kwds["xlabels"]; del kwds["xlabels"]
-        self.xlogbase = kwds["xlogbase"]; del kwds["xlogbase"]
-        self.aty = kwds["aty"]; del kwds["aty"]
-        self.yticks = kwds["yticks"]; del kwds["yticks"]
-        self.yminiticks = kwds["yminiticks"]; del kwds["yminiticks"]
-        self.ylabels = kwds["ylabels"]; del kwds["ylabels"]
-        self.ylogbase = kwds["ylogbase"]; del kwds["ylogbase"]
-        self.arrows = kwds["arrows"]; del kwds["arrows"]
-        self.text_attr = kwds["text_attr"]; del kwds["text_attr"]
-        self.axis_attr = kwds["axis_attr"]; del kwds["axis_attr"]
-        if len(kwds) != 0:
-            raise TypeError ("Plot() got unexpected keyword arguments %s" % kwds.keys())
+      self.trans = kwds["trans"]
+      del kwds["trans"]
+      self.x = kwds["x"]
+      del kwds["x"]
+      self.y = kwds["y"]
+      del kwds["y"]
+      self.width = kwds["width"]
+      del kwds["width"]
+      self.height = kwds["height"]
+      del kwds["height"]
+      self.flipx = kwds["flipx"]
+      del kwds["flipx"]
+      self.flipy = kwds["flipy"]
+      del kwds["flipy"]
+      self.minusInfinity = kwds["minusInfinity"]
+      del kwds["minusInfinity"]
+      self.atx = kwds["atx"]
+      del kwds["atx"]
+      self.xticks = kwds["xticks"]
+      del kwds["xticks"]
+      self.xminiticks = kwds["xminiticks"]
+      del kwds["xminiticks"]
+      self.xlabels = kwds["xlabels"]
+      del kwds["xlabels"]
+      self.xlogbase = kwds["xlogbase"]
+      del kwds["xlogbase"]
+      self.aty = kwds["aty"]
+      del kwds["aty"]
+      self.yticks = kwds["yticks"]
+      del kwds["yticks"]
+      self.yminiticks = kwds["yminiticks"]
+      del kwds["yminiticks"]
+      self.ylabels = kwds["ylabels"]
+      del kwds["ylabels"]
+      self.ylogbase = kwds["ylogbase"]
+      del kwds["ylogbase"]
+      self.arrows = kwds["arrows"]
+      del kwds["arrows"]
+      self.text_attr = kwds["text_attr"]
+      del kwds["text_attr"]
+      self.axis_attr = kwds["axis_attr"]
+      del kwds["axis_attr"]
+      if kwds:
+        raise TypeError(f"Plot() got unexpected keyword arguments {kwds.keys()}")
 
     def SVG(self, trans=None):
         """Apply the transformation "trans" and return an SVG object."""
@@ -983,7 +992,7 @@ class Frame:
         return "<Frame (%d items)>" % len(self.d)
 
     def __init__(self, xmin, xmax, ymin, ymax, *d, **kwds):
-        """Acts like Fig, but draws a coordinate frame around the data. You also need to supply plot ranges.
+      """Acts like Fig, but draws a coordinate frame around the data. You also need to supply plot ranges.
 
         Frame(xmin, xmax, ymin, ymax, obj, obj, obj..., keyword options...)
 
@@ -1013,47 +1022,82 @@ class Frame:
         axis_attr       {}            a dictionary of attributes for the axis lines
         """
 
-        self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
-        self.d = list(d)
-        defaults = {"x": 20, "y": 5, "width": 75, "height": 80,
-                    "flipx": False, "flipy": True, "minusInfinity": -1000,
-                    "xtitle": None, "xticks": -10, "xminiticks": True, "xlabels": True,
-                    "x2labels": None, "xlogbase": None,
-                    "ytitle": None, "yticks": -10, "yminiticks": True, "ylabels": True,
-                    "y2labels": None, "ylogbase": None,
-                    "text_attr": {}, "axis_attr": {},
-                   }
-        defaults.update(kwds)
-        kwds = defaults
+      self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
+      self.d = list(d)
+      defaults = {
+          "x": 20,
+          "y": 5,
+          "width": 75,
+          "height": 80,
+          "flipx": False,
+          "flipy": True,
+          "minusInfinity": -1000,
+          "xtitle": None,
+          "xticks": -10,
+          "xminiticks": True,
+          "xlabels": True,
+          "x2labels": None,
+          "xlogbase": None,
+          "ytitle": None,
+          "yticks": -10,
+          "yminiticks": True,
+          "ylabels": True,
+          "y2labels": None,
+          "ylogbase": None,
+          "text_attr": {},
+          "axis_attr": {},
+      } | kwds
+      kwds = defaults
 
-        self.x = kwds["x"]; del kwds["x"]
-        self.y = kwds["y"]; del kwds["y"]
-        self.width = kwds["width"]; del kwds["width"]
-        self.height = kwds["height"]; del kwds["height"]
-        self.flipx = kwds["flipx"]; del kwds["flipx"]
-        self.flipy = kwds["flipy"]; del kwds["flipy"]
-        self.minusInfinity = kwds["minusInfinity"]; del kwds["minusInfinity"]
-        self.xtitle = kwds["xtitle"]; del kwds["xtitle"]
-        self.xticks = kwds["xticks"]; del kwds["xticks"]
-        self.xminiticks = kwds["xminiticks"]; del kwds["xminiticks"]
-        self.xlabels = kwds["xlabels"]; del kwds["xlabels"]
-        self.x2labels = kwds["x2labels"]; del kwds["x2labels"]
-        self.xlogbase = kwds["xlogbase"]; del kwds["xlogbase"]
-        self.ytitle = kwds["ytitle"]; del kwds["ytitle"]
-        self.yticks = kwds["yticks"]; del kwds["yticks"]
-        self.yminiticks = kwds["yminiticks"]; del kwds["yminiticks"]
-        self.ylabels = kwds["ylabels"]; del kwds["ylabels"]
-        self.y2labels = kwds["y2labels"]; del kwds["y2labels"]
-        self.ylogbase = kwds["ylogbase"]; del kwds["ylogbase"]
+      self.x = kwds["x"]
+      del kwds["x"]
+      self.y = kwds["y"]
+      del kwds["y"]
+      self.width = kwds["width"]
+      del kwds["width"]
+      self.height = kwds["height"]
+      del kwds["height"]
+      self.flipx = kwds["flipx"]
+      del kwds["flipx"]
+      self.flipy = kwds["flipy"]
+      del kwds["flipy"]
+      self.minusInfinity = kwds["minusInfinity"]
+      del kwds["minusInfinity"]
+      self.xtitle = kwds["xtitle"]
+      del kwds["xtitle"]
+      self.xticks = kwds["xticks"]
+      del kwds["xticks"]
+      self.xminiticks = kwds["xminiticks"]
+      del kwds["xminiticks"]
+      self.xlabels = kwds["xlabels"]
+      del kwds["xlabels"]
+      self.x2labels = kwds["x2labels"]
+      del kwds["x2labels"]
+      self.xlogbase = kwds["xlogbase"]
+      del kwds["xlogbase"]
+      self.ytitle = kwds["ytitle"]
+      del kwds["ytitle"]
+      self.yticks = kwds["yticks"]
+      del kwds["yticks"]
+      self.yminiticks = kwds["yminiticks"]
+      del kwds["yminiticks"]
+      self.ylabels = kwds["ylabels"]
+      del kwds["ylabels"]
+      self.y2labels = kwds["y2labels"]
+      del kwds["y2labels"]
+      self.ylogbase = kwds["ylogbase"]
+      del kwds["ylogbase"]
 
-        self.text_attr = dict(self.text_defaults)
-        self.text_attr.update(kwds["text_attr"]); del kwds["text_attr"]
+      self.text_attr = dict(self.text_defaults)
+      self.text_attr.update(kwds["text_attr"])
+      del kwds["text_attr"]
 
-        self.axis_attr = dict(self.axis_defaults)
-        self.axis_attr.update(kwds["axis_attr"]); del kwds["axis_attr"]
+      self.axis_attr = dict(self.axis_defaults)
+      self.axis_attr.update(kwds["axis_attr"])
+      del kwds["axis_attr"]
 
-        if len(kwds) != 0:
-            raise TypeError( "Frame() got unexpected keyword arguments %s" % kwds.keys())
+      if kwds:
+        raise TypeError(f"Frame() got unexpected keyword arguments {kwds.keys()}")
 
     def SVG(self):
         """Apply the window transformation and return an SVG object."""
@@ -1113,18 +1157,17 @@ class Frame:
 ######################################################################
 
 def pathtoPath(svg):
-    """Converts SVG("path", d="...") into Path(d=[...])."""
-    if not isinstance(svg, SVG) or svg.t != "path":
-        raise TypeError ("Only SVG <path /> objects can be converted into Paths")
-    attr = dict(svg.attr)
-    d = attr["d"]
-    del attr["d"]
-    for key in attr.keys():
-        if not isinstance(key, str):
-            value = attr[key]
-            del attr[key]
-            attr[str(key)] = value
-    return Path(d, **attr)
+  """Converts SVG("path", d="...") into Path(d=[...])."""
+  if not isinstance(svg, SVG) or svg.t != "path":
+      raise TypeError ("Only SVG <path /> objects can be converted into Paths")
+  attr = dict(svg.attr)
+  d = attr["d"]
+  del attr["d"]
+  for key, value in attr.items():
+    if not isinstance(key, str):
+      del attr[key]
+      attr[str(key)] = value
+  return Path(d, **attr)
 
 
 class Path:
@@ -1170,13 +1213,8 @@ class Path:
         return "<Path (%d nodes) %s>" % (len(self.d), self.attr)
 
     def __init__(self, d=[], **attr):
-        if isinstance(d, basestring):
-            self.d = self.parse(d)
-        else:
-            self.d = list(d)
-
-        self.attr = dict(self.defaults)
-        self.attr.update(attr)
+      self.d = self.parse(d) if isinstance(d, basestring) else list(d)
+      self.attr = dict(self.defaults) | attr
 
     def parse_whitespace(self, index, pathdata):
         """Part of Path's text-command parsing algorithm; used internally."""
@@ -1198,37 +1236,36 @@ class Path:
             return None, index, pathdata
 
     def parse_number(self, index, pathdata):
-        """Part of Path's text-command parsing algorithm; used internally."""
-        index, pathdata = self.parse_whitespace(index, pathdata)
+      """Part of Path's text-command parsing algorithm; used internally."""
+      index, pathdata = self.parse_whitespace(index, pathdata)
 
-        if index >= len(pathdata):
-            return None, index, pathdata
-        first_digit = pathdata[index]
+      if index >= len(pathdata):
+          return None, index, pathdata
+      first_digit = pathdata[index]
 
-        if "0" <= first_digit <= "9" or first_digit in ("-", "+", "."):
-            start = index
-            while index < len(pathdata) and ("0" <= pathdata[index] <= "9" or pathdata[index] in ("-", "+", ".", "e", "E")):
-                index += 1
-            end = index
+      if not "0" <= first_digit <= "9" and first_digit not in ("-", "+", "."):
+        return None, index, pathdata
+      start = index
+      while index < len(pathdata) and ("0" <= first_digit <= "9"
+                                       or first_digit in ("-", "+", ".", "e", "E")):
+        index += 1
+      end = index
 
-            index = end
-            return float(pathdata[start:end]), index, pathdata
-        else:
-            return None, index, pathdata
+      index = end
+      return float(pathdata[start:end]), index, pathdata
 
     def parse_boolean(self, index, pathdata):
-        """Part of Path's text-command parsing algorithm; used internally."""
-        index, pathdata = self.parse_whitespace(index, pathdata)
+      """Part of Path's text-command parsing algorithm; used internally."""
+      index, pathdata = self.parse_whitespace(index, pathdata)
 
-        if index >= len(pathdata):
-            return None, index, pathdata
-        first_digit = pathdata[index]
+      if index >= len(pathdata):
+          return None, index, pathdata
+      first_digit = pathdata[index]
 
-        if first_digit in ("0", "1"):
-            index += 1
-            return int(first_digit), index, pathdata
-        else:
-            return None, index, pathdata
+      if first_digit not in ("0", "1"):
+        return None, index, pathdata
+      index += 1
+      return int(first_digit), index, pathdata
 
     def parse(self, pathdata):
         """Parses text-commands, converting them into a list of tuples.
@@ -1350,239 +1387,230 @@ class Path:
         return output
 
     def SVG(self, trans=None):
-        """Apply the transformation "trans" and return an SVG object."""
-        if isinstance(trans, basestring):
-            trans = totrans(trans)
+      """Apply the transformation "trans" and return an SVG object."""
+      if isinstance(trans, basestring):
+          trans = totrans(trans)
 
-        x, y, X, Y = None, None, None, None
-        output = []
-        for datum in self.d:
-            if not isinstance(datum, (tuple, list)):
-                raise TypeError("pathdata elements must be tuples/lists")
+      x, y, X, Y = None, None, None, None
+      output = []
+      for datum in self.d:
+        if not isinstance(datum, (tuple, list)):
+            raise TypeError("pathdata elements must be tuples/lists")
 
-            command = datum[0]
-
-            ######################
-            if command in ("Z", "z"):
-                x, y, X, Y = None, None, None, None
-                output.append("Z")
+        command = datum[0]
 
             ######################
-            elif command in ("H", "h", "V", "v"):
-                command, num1 = datum
+        if command in ("Z", "z"):
+          x, y, X, Y = None, None, None, None
+          output.append("Z")
 
-                if command == "H" or (command == "h" and x is None):
-                    x = num1
-                elif command == "h":
+        elif command in ("H", "h", "V", "v"):
+          command, num1 = datum
+
+          if command == "H" or (command == "h" and x is None):
+              x = num1
+          elif command == "h":
+              x += num1
+          elif command == "V" or (command == "v" and y is None):
+              y = num1
+          elif command == "v":
+              y += num1
+
+          X, Y = (x, y) if trans is None else trans(x, y)
+          output.append("L%g %g" % (X, Y))
+
+        elif command in ("M", "m", "L", "l", "T", "t"):
+            command, num1, num2, isglobal12 = datum
+
+            if trans is None or isglobal12:
+                if command.isupper() or X is None or Y is None:
+                    X, Y = num1, num2
+                else:
+                    X += num1
+                    Y += num2
+                x, y = X, Y
+
+            else:
+                if command.isupper() or x is None or y is None:
+                    x, y = num1, num2
+                else:
                     x += num1
-                elif command == "V" or (command == "v" and y is None):
-                    y = num1
-                elif command == "v":
-                    y += num1
+                    y += num2
+                X, Y = trans(x, y)
 
-                if trans is None:
-                    X, Y = x, y
+            COMMAND = command.capitalize()
+            output.append("%s%g %g" % (COMMAND, X, Y))
+
+        elif command in ("S", "s", "Q", "q"):
+            command, num1, num2, isglobal12, num3, num4, isglobal34 = datum
+
+            if trans is None or isglobal12:
+                if command.isupper() or X is None or Y is None:
+                    CX, CY = num1, num2
                 else:
-                    X, Y = trans(x, y)
+                    CX = X + num1
+                    CY = Y + num2
 
-                output.append("L%g %g" % (X, Y))
-
-            ######################
-            elif command in ("M", "m", "L", "l", "T", "t"):
-                command, num1, num2, isglobal12 = datum
-
-                if trans is None or isglobal12:
-                    if command.isupper() or X is None or Y is None:
-                        X, Y = num1, num2
-                    else:
-                        X += num1
-                        Y += num2
-                    x, y = X, Y
-
+            else:
+                if command.isupper() or x is None or y is None:
+                    cx, cy = num1, num2
                 else:
-                    if command.isupper() or x is None or y is None:
-                        x, y = num1, num2
-                    else:
-                        x += num1
-                        y += num2
-                    X, Y = trans(x, y)
+                    cx = x + num1
+                    cy = y + num2
+                CX, CY = trans(cx, cy)
 
-                COMMAND = command.capitalize()
-                output.append("%s%g %g" % (COMMAND, X, Y))
-
-            ######################
-            elif command in ("S", "s", "Q", "q"):
-                command, num1, num2, isglobal12, num3, num4, isglobal34 = datum
-
-                if trans is None or isglobal12:
-                    if command.isupper() or X is None or Y is None:
-                        CX, CY = num1, num2
-                    else:
-                        CX = X + num1
-                        CY = Y + num2
-
+            if trans is None or isglobal34:
+                if command.isupper() or X is None or Y is None:
+                    X, Y = num3, num4
                 else:
-                    if command.isupper() or x is None or y is None:
-                        cx, cy = num1, num2
-                    else:
-                        cx = x + num1
-                        cy = y + num2
-                    CX, CY = trans(cx, cy)
+                    X += num3
+                    Y += num4
+                x, y = X, Y
 
-                if trans is None or isglobal34:
-                    if command.isupper() or X is None or Y is None:
-                        X, Y = num3, num4
-                    else:
-                        X += num3
-                        Y += num4
-                    x, y = X, Y
-
+            else:
+                if command.isupper() or x is None or y is None:
+                    x, y = num3, num4
                 else:
-                    if command.isupper() or x is None or y is None:
-                        x, y = num3, num4
-                    else:
-                        x += num3
-                        y += num4
-                    X, Y = trans(x, y)
+                    x += num3
+                    y += num4
+                X, Y = trans(x, y)
 
-                COMMAND = command.capitalize()
-                output.append("%s%g %g %g %g" % (COMMAND, CX, CY, X, Y))
+            COMMAND = command.capitalize()
+            output.append("%s%g %g %g %g" % (COMMAND, CX, CY, X, Y))
 
-            ######################
-            elif command in ("C", "c"):
-                command, num1, num2, isglobal12, num3, num4, isglobal34, num5, num6, isglobal56 = datum
+        elif command in ("C", "c"):
+            command, num1, num2, isglobal12, num3, num4, isglobal34, num5, num6, isglobal56 = datum
 
-                if trans is None or isglobal12:
-                    if command.isupper() or X is None or Y is None:
-                        C1X, C1Y = num1, num2
-                    else:
-                        C1X = X + num1
-                        C1Y = Y + num2
-
+            if trans is None or isglobal12:
+                if command.isupper() or X is None or Y is None:
+                    C1X, C1Y = num1, num2
                 else:
-                    if command.isupper() or x is None or y is None:
-                        c1x, c1y = num1, num2
-                    else:
-                        c1x = x + num1
-                        c1y = y + num2
-                    C1X, C1Y = trans(c1x, c1y)
+                    C1X = X + num1
+                    C1Y = Y + num2
 
-                if trans is None or isglobal34:
-                    if command.isupper() or X is None or Y is None:
-                        C2X, C2Y = num3, num4
-                    else:
-                        C2X = X + num3
-                        C2Y = Y + num4
-
+            else:
+                if command.isupper() or x is None or y is None:
+                    c1x, c1y = num1, num2
                 else:
-                    if command.isupper() or x is None or y is None:
-                        c2x, c2y = num3, num4
-                    else:
-                        c2x = x + num3
-                        c2y = y + num4
-                    C2X, C2Y = trans(c2x, c2y)
+                    c1x = x + num1
+                    c1y = y + num2
+                C1X, C1Y = trans(c1x, c1y)
 
-                if trans is None or isglobal56:
-                    if command.isupper() or X is None or Y is None:
-                        X, Y = num5, num6
-                    else:
-                        X += num5
-                        Y += num6
-                    x, y = X, Y
-
+            if trans is None or isglobal34:
+                if command.isupper() or X is None or Y is None:
+                    C2X, C2Y = num3, num4
                 else:
-                    if command.isupper() or x is None or y is None:
-                        x, y = num5, num6
-                    else:
-                        x += num5
-                        y += num6
-                    X, Y = trans(x, y)
+                    C2X = X + num3
+                    C2Y = Y + num4
 
-                COMMAND = command.capitalize()
-                output.append("%s%g %g %g %g %g %g" % (COMMAND, C1X, C1Y, C2X, C2Y, X, Y))
-
-            ######################
-            elif command in ("A", "a"):
-                command, num1, num2, isglobal12, angle, large_arc_flag, sweep_flag, num3, num4, isglobal34 = datum
-
-                oldx, oldy = x, y
-                OLDX, OLDY = X, Y
-
-                if trans is None or isglobal34:
-                    if command.isupper() or X is None or Y is None:
-                        X, Y = num3, num4
-                    else:
-                        X += num3
-                        Y += num4
-                    x, y = X, Y
-
+            else:
+                if command.isupper() or x is None or y is None:
+                    c2x, c2y = num3, num4
                 else:
-                    if command.isupper() or x is None or y is None:
-                        x, y = num3, num4
-                    else:
-                        x += num3
-                        y += num4
-                    X, Y = trans(x, y)
+                    c2x = x + num3
+                    c2y = y + num4
+                C2X, C2Y = trans(c2x, c2y)
 
-                if x is not None and y is not None:
-                    centerx, centery = (x + oldx)/2., (y + oldy)/2.
-                CENTERX, CENTERY = (X + OLDX)/2., (Y + OLDY)/2.
-
-                if trans is None or isglobal12:
-                    RX = CENTERX + num1
-                    RY = CENTERY + num2
-
+            if trans is None or isglobal56:
+                if command.isupper() or X is None or Y is None:
+                    X, Y = num5, num6
                 else:
-                    rx = centerx + num1
-                    ry = centery + num2
-                    RX, RY = trans(rx, ry)
+                    X += num5
+                    Y += num6
+                x, y = X, Y
 
-                COMMAND = command.capitalize()
-                output.append("%s%g %g %g %d %d %g %g" % (COMMAND, RX - CENTERX, RY - CENTERY, angle, large_arc_flag, sweep_flag, X, Y))
-
-            elif command in (",", "."):
-                command, num1, num2, isglobal12, angle, num3, num4, isglobal34 = datum
-                if trans is None or isglobal34:
-                    if command == "." or X is None or Y is None:
-                        X, Y = num3, num4
-                    else:
-                        X += num3
-                        Y += num4
-                        x, y = None, None
-
+            else:
+                if command.isupper() or x is None or y is None:
+                    x, y = num5, num6
                 else:
-                    if command == "." or x is None or y is None:
-                        x, y = num3, num4
-                    else:
-                        x += num3
-                        y += num4
-                    X, Y = trans(x, y)
+                    x += num5
+                    y += num6
+                X, Y = trans(x, y)
 
-                if trans is None or isglobal12:
-                    RX = X + num1
-                    RY = Y + num2
+            COMMAND = command.capitalize()
+            output.append("%s%g %g %g %g %g %g" % (COMMAND, C1X, C1Y, C2X, C2Y, X, Y))
 
+        elif command in ("A", "a"):
+            command, num1, num2, isglobal12, angle, large_arc_flag, sweep_flag, num3, num4, isglobal34 = datum
+
+            oldx, oldy = x, y
+            OLDX, OLDY = X, Y
+
+            if trans is None or isglobal34:
+                if command.isupper() or X is None or Y is None:
+                    X, Y = num3, num4
                 else:
-                    rx = x + num1
-                    ry = y + num2
-                    RX, RY = trans(rx, ry)
+                    X += num3
+                    Y += num4
+                x, y = X, Y
 
-                RX, RY = RX - X, RY - Y
+            else:
+                if command.isupper() or x is None or y is None:
+                    x, y = num3, num4
+                else:
+                    x += num3
+                    y += num4
+                X, Y = trans(x, y)
 
-                X1, Y1 = X + RX * math.cos(angle*math.pi/180.), Y + RX * math.sin(angle*math.pi/180.)
-                X2, Y2 = X + RY * math.sin(angle*math.pi/180.), Y - RY * math.cos(angle*math.pi/180.)
-                X3, Y3 = X - RX * math.cos(angle*math.pi/180.), Y - RX * math.sin(angle*math.pi/180.)
-                X4, Y4 = X - RY * math.sin(angle*math.pi/180.), Y + RY * math.cos(angle*math.pi/180.)
+            if x is not None and y is not None:
+                centerx, centery = (x + oldx)/2., (y + oldy)/2.
+            CENTERX, CENTERY = (X + OLDX)/2., (Y + OLDY)/2.
 
-                output.append("M%g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %g" % (
-                              X1, Y1, RX, RY, angle, X2, Y2, RX, RY, angle, X3, Y3, RX, RY, angle, X4, Y4, RX, RY, angle, X1, Y1))
+            if trans is None or isglobal12:
+                RX = CENTERX + num1
+                RY = CENTERY + num2
 
-        return SVG("path", d="".join(output), **self.attr)
+            else:
+                rx = centerx + num1
+                ry = centery + num2
+                RX, RY = trans(rx, ry)
+
+            COMMAND = command.capitalize()
+            output.append("%s%g %g %g %d %d %g %g" % (COMMAND, RX - CENTERX, RY - CENTERY, angle, large_arc_flag, sweep_flag, X, Y))
+
+        elif command in (",", "."):
+            command, num1, num2, isglobal12, angle, num3, num4, isglobal34 = datum
+            if trans is None or isglobal34:
+                if command == "." or X is None or Y is None:
+                    X, Y = num3, num4
+                else:
+                    X += num3
+                    Y += num4
+                    x, y = None, None
+
+            else:
+                if command == "." or x is None or y is None:
+                    x, y = num3, num4
+                else:
+                    x += num3
+                    y += num4
+                X, Y = trans(x, y)
+
+            if trans is None or isglobal12:
+                RX = X + num1
+                RY = Y + num2
+
+            else:
+                rx = x + num1
+                ry = y + num2
+                RX, RY = trans(rx, ry)
+
+            RX, RY = RX - X, RY - Y
+
+            X1, Y1 = X + RX * math.cos(angle*math.pi/180.), Y + RX * math.sin(angle*math.pi/180.)
+            X2, Y2 = X + RY * math.sin(angle*math.pi/180.), Y - RY * math.cos(angle*math.pi/180.)
+            X3, Y3 = X - RX * math.cos(angle*math.pi/180.), Y - RX * math.sin(angle*math.pi/180.)
+            X4, Y4 = X - RY * math.sin(angle*math.pi/180.), Y + RY * math.cos(angle*math.pi/180.)
+
+            output.append("M%g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %gA%g %g %g 0 0 %g %g" % (
+                          X1, Y1, RX, RY, angle, X2, Y2, RX, RY, angle, X3, Y3, RX, RY, angle, X4, Y4, RX, RY, angle, X1, Y1))
+
+      return SVG("path", d="".join(output), **self.attr)
 
 ######################################################################
 
 def funcRtoC(expr, var="t", globals=None, locals=None):
-    """Converts a complex "z(t)" string to a function acceptable for Curve.
+  """Converts a complex "z(t)" string to a function acceptable for Curve.
 
     expr    required        string in the form "z(t)"
     var     default="t"     name of the independent variable
@@ -1590,20 +1618,20 @@ def funcRtoC(expr, var="t", globals=None, locals=None):
                             you may want to use Python's builtin globals()
     locals  default=None    dict of local variables
     """
-    if locals is None:
-        locals = {}  # python 2.3's eval() won't accept None
-    g = cmath.__dict__
-    if globals is not None:
-        g.update(globals)
-    output = eval("lambda %s: (%s)" % (var, expr), g, locals)
-    split = lambda z: (z.real, z.imag)
-    output2 = lambda t: split(output(t))
-    set_func_name(output2, "%s -> %s" % (var, expr))
-    return output2
+  if locals is None:
+      locals = {}  # python 2.3's eval() won't accept None
+  g = cmath.__dict__
+  if globals is not None:
+      g.update(globals)
+  output = eval(f"lambda {var}: ({expr})", g, locals)
+  split = lambda z: (z.real, z.imag)
+  output2 = lambda t: split(output(t))
+  set_func_name(output2, f"{var} -> {expr}")
+  return output2
 
 
 def funcRtoR2(expr, var="t", globals=None, locals=None):
-    """Converts a "f(t), g(t)" string to a function acceptable for Curve.
+  """Converts a "f(t), g(t)" string to a function acceptable for Curve.
 
     expr    required        string in the form "f(t), g(t)"
     var     default="t"     name of the independent variable
@@ -1611,18 +1639,18 @@ def funcRtoR2(expr, var="t", globals=None, locals=None):
                             you may want to use Python's builtin globals()
     locals  default=None    dict of local variables
     """
-    if locals is None:
-        locals = {}  # python 2.3's eval() won't accept None
-    g = math.__dict__
-    if globals is not None:
-        g.update(globals)
-    output = eval("lambda %s: (%s)" % (var, expr), g, locals)
-    set_func_name(output, "%s -> %s" % (var, expr))
-    return output
+  if locals is None:
+      locals = {}  # python 2.3's eval() won't accept None
+  g = math.__dict__
+  if globals is not None:
+      g.update(globals)
+  output = eval(f"lambda {var}: ({expr})", g, locals)
+  set_func_name(output, f"{var} -> {expr}")
+  return output
 
 
 def funcRtoR(expr, var="x", globals=None, locals=None):
-    """Converts a "f(x)" string to a function acceptable for Curve.
+  """Converts a "f(x)" string to a function acceptable for Curve.
 
     expr    required        string in the form "f(x)"
     var     default="x"     name of the independent variable
@@ -1630,14 +1658,14 @@ def funcRtoR(expr, var="x", globals=None, locals=None):
                             you may want to use Python's builtin globals()
     locals  default=None    dict of local variables
     """
-    if locals is None:
-        locals = {}  # python 2.3's eval() won't accept None
-    g = math.__dict__
-    if globals is not None:
-        g.update(globals)
-    output = eval("lambda %s: (%s, %s)" % (var, var, expr), g, locals)
-    set_func_name(output, "%s -> %s" % (var, expr))
-    return output
+  if locals is None:
+      locals = {}  # python 2.3's eval() won't accept None
+  g = math.__dict__
+  if globals is not None:
+      g.update(globals)
+  output = eval(f"lambda {var}: ({var}, {expr})", g, locals)
+  set_func_name(output, f"{var} -> {expr}")
+  return output
 
 
 class Curve:
@@ -1658,32 +1686,31 @@ class Curve:
     discontinuity_limit = 5.
 
     def __repr__(self):
-        return "<Curve %s [%s, %s] %s>" % (self.f, self.low, self.high, self.attr)
+      return f"<Curve {self.f} [{self.low}, {self.high}] {self.attr}>"
 
     def __init__(self, f, low, high, loop=False, **attr):
-        self.f = f
-        self.low = low
-        self.high = high
-        self.loop = loop
+      self.f = f
+      self.low = low
+      self.high = high
+      self.loop = loop
 
-        self.attr = dict(self.defaults)
-        self.attr.update(attr)
+      self.attr = dict(self.defaults) | attr
 
     ### nested class Sample
     class Sample:
         def __repr__(self):
-            t, x, y, X, Y = self.t, self.x, self.y, self.X, self.Y
-            if t is not None:
-                t = "%g" % t
-            if x is not None:
-                x = "%g" % x
-            if y is not None:
-                y = "%g" % y
-            if X is not None:
-                X = "%g" % X
-            if Y is not None:
-                Y = "%g" % Y
-            return "<Curve.Sample t=%s x=%s y=%s X=%s Y=%s>" % (t, x, y, X, Y)
+          t, x, y, X, Y = self.t, self.x, self.y, self.X, self.Y
+          if t is not None:
+              t = "%g" % t
+          if x is not None:
+              x = "%g" % x
+          if y is not None:
+              y = "%g" % y
+          if X is not None:
+              X = "%g" % X
+          if Y is not None:
+              Y = "%g" % Y
+          return f"<Curve.Sample t={t} x={x} y={y} X={X} Y={Y}>"
 
         def __init__(self, t):
             self.t = t
@@ -1692,11 +1719,8 @@ class Curve:
             self.left, self.right = left, right
 
         def evaluate(self, f, trans):
-            self.x, self.y = f(self.t)
-            if trans is None:
-                self.X, self.Y = self.x, self.y
-            else:
-                self.X, self.Y = trans(self.x, self.y)
+          self.x, self.y = f(self.t)
+          self.X, self.Y = (self.x, self.y) if trans is None else trans(self.x, self.y)
     ### end Sample
 
     ### nested class Samples
@@ -1813,33 +1837,29 @@ class Curve:
         return self.Path(trans).SVG()
 
     def Path(self, trans=None, local=False):
-        """Apply the transformation "trans" and return a Path object in
+      """Apply the transformation "trans" and return a Path object in
         global coordinates.  If local=True, return a Path in local coordinates
         (which must be transformed again)."""
 
-        if isinstance(trans, basestring):
-            trans = totrans(trans)
-        if isinstance(self.f, basestring):
-            self.f = funcRtoR2(self.f)
+      if isinstance(trans, basestring):
+          trans = totrans(trans)
+      if isinstance(self.f, basestring):
+          self.f = funcRtoR2(self.f)
 
-        self.sample(trans)
+      self.sample(trans)
 
-        output = []
-        for s in self.last_samples:
-            if s.X is not None and s.Y is not None:
-                if s.left is None or s.left.Y is None:
-                    command = "M"
-                else:
-                    command = "L"
+      output = []
+      for s in self.last_samples:
+        if s.X is not None and s.Y is not None:
+          command = "M" if s.left is None or s.left.Y is None else "L"
+          if local:
+              output.append((command, s.x, s.y, False))
+          else:
+              output.append((command, s.X, s.Y, True))
 
-                if local:
-                    output.append((command, s.x, s.y, False))
-                else:
-                    output.append((command, s.X, s.Y, True))
-
-        if self.loop:
-            output.append(("Z",))
-        return Path(output, **self.attr)
+      if self.loop:
+          output.append(("Z",))
+      return Path(output, **self.attr)
 
 ######################################################################
 
@@ -1887,152 +1907,120 @@ class Poly:
                len(self.d), self.mode, repr(self.loop), self.attr)
 
     def __init__(self, d=[], mode="L", loop=False, **attr):
-        self.d = list(d)
-        self.mode = mode
-        self.loop = loop
+      self.d = list(d)
+      self.mode = mode
+      self.loop = loop
 
-        self.attr = dict(self.defaults)
-        self.attr.update(attr)
+      self.attr = dict(self.defaults) | attr
 
     def SVG(self, trans=None):
         """Apply the transformation "trans" and return an SVG object."""
         return self.Path(trans).SVG()
 
     def Path(self, trans=None, local=False):
-        """Apply the transformation "trans" and return a Path object in
+      """Apply the transformation "trans" and return a Path object in
         global coordinates.  If local=True, return a Path in local coordinates
         (which must be transformed again)."""
-        if isinstance(trans, basestring):
-            trans = totrans(trans)
+      if isinstance(trans, basestring):
+          trans = totrans(trans)
 
-        if self.mode[0] == "L" or self.mode[0] == "l":
-            mode = "L"
-        elif self.mode[0] == "B" or self.mode[0] == "b":
-            mode = "B"
-        elif self.mode[0] == "V" or self.mode[0] == "v":
-            mode = "V"
-        elif self.mode[0] == "F" or self.mode[0] == "f":
-            mode = "F"
-        elif self.mode[0] == "S" or self.mode[0] == "s":
-            mode = "S"
+      if self.mode[0] == "L":
+        mode = "L"
+      elif self.mode[0] == "l":
+        mode = "L"
+      elif self.mode[0] in ["B", "b"]:
+        mode = "B"
+      elif self.mode[0] in ["V", "v"]:
+        mode = "V"
+      elif self.mode[0] in ["F", "f"]:
+        mode = "F"
+      elif self.mode[0] in ["S", "s"]:
+        mode = "S"
 
-            vx, vy = [0.]*len(self.d), [0.]*len(self.d)
-            for i in xrange(len(self.d)):
-                inext = (i+1) % len(self.d)
-                iprev = (i-1) % len(self.d)
+        vx, vy = [0.]*len(self.d), [0.]*len(self.d)
+        for i in xrange(len(self.d)):
+          inext = (i+1) % len(self.d)
+          iprev = (i-1) % len(self.d)
 
-                vx[i] = (self.d[inext][0] - self.d[iprev][0])/2.
-                vy[i] = (self.d[inext][1] - self.d[iprev][1])/2.
-                if not self.loop and (i == 0 or i == len(self.d)-1):
-                    vx[i], vy[i] = 0., 0.
+          vx[i] = (self.d[inext][0] - self.d[iprev][0])/2.
+          vy[i] = (self.d[inext][1] - self.d[iprev][1])/2.
+          if not self.loop and i in [0, len(self.d) - 1]:
+            vx[i], vy[i] = 0., 0.
 
-        else:
-            raise ValueError("mode must be \"lines\", \"bezier\", \"velocity\", \"foreback\", \"smooth\", or an abbreviation")
+      else:
+        raise ValueError("mode must be \"lines\", \"bezier\", \"velocity\", \"foreback\", \"smooth\", or an abbreviation")
 
-        d = []
-        indexes = list(range(len(self.d)))
-        if self.loop and len(self.d) > 0:
-            indexes.append(0)
+      d = []
+      indexes = list(range(len(self.d)))
+      if self.loop and len(self.d) > 0:
+          indexes.append(0)
 
-        for i in indexes:
-            inext = (i+1) % len(self.d)
-            iprev = (i-1) % len(self.d)
+      for i in indexes:
+        inext = (i+1) % len(self.d)
+        iprev = (i-1) % len(self.d)
 
-            x, y = self.d[i][0], self.d[i][1]
+        x, y = self.d[i][0], self.d[i][1]
 
-            if trans is None:
-                X, Y = x, y
+        X, Y = (x, y) if trans is None else trans(x, y)
+        if not d:
+          if local:
+              d.append(("M", x, y, False))
+          else:
+              d.append(("M", X, Y, True))
+
+        elif mode == "L":
+            if local:
+                d.append(("L", x, y, False))
             else:
-                X, Y = trans(x, y)
+                d.append(("L", X, Y, True))
 
-            if d == []:
-                if local:
-                    d.append(("M", x, y, False))
-                else:
-                    d.append(("M", X, Y, True))
+        elif mode == "B":
+          c1x, c1y = self.d[i][2], self.d[i][3]
+          C1X, C1Y = (c1x, c1y) if trans is None else trans(c1x, c1y)
+          c2x, c2y = self.d[i][4], self.d[i][5]
+          C2X, C2Y = (c2x, c2y) if trans is None else trans(c2x, c2y)
+          if local:
+              d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
+          else:
+              d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
 
-            elif mode == "L":
-                if local:
-                    d.append(("L", x, y, False))
-                else:
-                    d.append(("L", X, Y, True))
+        elif mode == "V":
+          c1x, c1y = self.d[iprev][2]/3. + self.d[iprev][0], self.d[iprev][3]/3. + self.d[iprev][1]
+          c2x, c2y = self.d[i][2]/-3. + x, self.d[i][3]/-3. + y
 
-            elif mode == "B":
-                c1x, c1y = self.d[i][2], self.d[i][3]
-                if trans is None:
-                    C1X, C1Y = c1x, c1y
-                else:
-                    C1X, C1Y = trans(c1x, c1y)
+          C1X, C1Y = (c1x, c1y) if trans is None else trans(c1x, c1y)
+          C2X, C2Y = (c2x, c2y) if trans is None else trans(c2x, c2y)
+          if local:
+              d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
+          else:
+              d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
 
-                c2x, c2y = self.d[i][4], self.d[i][5]
-                if trans is None:
-                    C2X, C2Y = c2x, c2y
-                else:
-                    C2X, C2Y = trans(c2x, c2y)
+        elif mode == "F":
+          c1x, c1y = self.d[iprev][4]/3. + self.d[iprev][0], self.d[iprev][5]/3. + self.d[iprev][1]
+          c2x, c2y = self.d[i][2]/-3. + x, self.d[i][3]/-3. + y
 
-                if local:
-                    d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
-                else:
-                    d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
+          C1X, C1Y = (c1x, c1y) if trans is None else trans(c1x, c1y)
+          C2X, C2Y = (c2x, c2y) if trans is None else trans(c2x, c2y)
+          if local:
+              d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
+          else:
+              d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
 
-            elif mode == "V":
-                c1x, c1y = self.d[iprev][2]/3. + self.d[iprev][0], self.d[iprev][3]/3. + self.d[iprev][1]
-                c2x, c2y = self.d[i][2]/-3. + x, self.d[i][3]/-3. + y
+        elif mode == "S":
+          c1x, c1y = vx[iprev]/3. + self.d[iprev][0], vy[iprev]/3. + self.d[iprev][1]
+          c2x, c2y = vx[i]/-3. + x, vy[i]/-3. + y
 
-                if trans is None:
-                    C1X, C1Y = c1x, c1y
-                else:
-                    C1X, C1Y = trans(c1x, c1y)
-                if trans is None:
-                    C2X, C2Y = c2x, c2y
-                else:
-                    C2X, C2Y = trans(c2x, c2y)
+          C1X, C1Y = (c1x, c1y) if trans is None else trans(c1x, c1y)
+          C2X, C2Y = (c2x, c2y) if trans is None else trans(c2x, c2y)
+          if local:
+              d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
+          else:
+              d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
 
-                if local:
-                    d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
-                else:
-                    d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
+      if self.loop and len(self.d) > 0:
+          d.append(("Z",))
 
-            elif mode == "F":
-                c1x, c1y = self.d[iprev][4]/3. + self.d[iprev][0], self.d[iprev][5]/3. + self.d[iprev][1]
-                c2x, c2y = self.d[i][2]/-3. + x, self.d[i][3]/-3. + y
-
-                if trans is None:
-                    C1X, C1Y = c1x, c1y
-                else:
-                    C1X, C1Y = trans(c1x, c1y)
-                if trans is None:
-                    C2X, C2Y = c2x, c2y
-                else:
-                    C2X, C2Y = trans(c2x, c2y)
-
-                if local:
-                    d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
-                else:
-                    d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
-
-            elif mode == "S":
-                c1x, c1y = vx[iprev]/3. + self.d[iprev][0], vy[iprev]/3. + self.d[iprev][1]
-                c2x, c2y = vx[i]/-3. + x, vy[i]/-3. + y
-
-                if trans is None:
-                    C1X, C1Y = c1x, c1y
-                else:
-                    C1X, C1Y = trans(c1x, c1y)
-                if trans is None:
-                    C2X, C2Y = c2x, c2y
-                else:
-                    C2X, C2Y = trans(c2x, c2y)
-
-                if local:
-                    d.append(("C", c1x, c1y, False, c2x, c2y, False, x, y, False))
-                else:
-                    d.append(("C", C1X, C1Y, True, C2X, C2Y, True, X, Y, True))
-
-        if self.loop and len(self.d) > 0:
-            d.append(("Z",))
-
-        return Path(d, **self.attr)
+      return Path(d, **self.attr)
 
 ######################################################################
 

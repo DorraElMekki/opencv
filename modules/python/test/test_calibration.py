@@ -19,9 +19,9 @@ class calibration_test(NewOpenCVTests):
         img_names = []
         for i in range(1, 15):
             if i < 10:
-                img_names.append('samples/data/left0{}.jpg'.format(str(i)))
+                img_names.append(f'samples/data/left0{str(i)}.jpg')
             elif i != 10:
-                img_names.append('samples/data/left{}.jpg'.format(str(i)))
+                img_names.append(f'samples/data/left{str(i)}.jpg')
 
         square_size = 1.0
         pattern_size = (9, 6)

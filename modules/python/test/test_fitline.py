@@ -62,8 +62,8 @@ class fitline_test(NewOpenCVTests):
 
         refVec =  (np.float32(p1) - p0) / cv.norm(np.float32(p1) - p0)
 
-        for i in range(len(lines)):
-            self.assertLessEqual(cv.norm(refVec - lines[i][0:2], cv.NORM_L2), eps)
+        for line_ in lines:
+            self.assertLessEqual(cv.norm(refVec - line_[:2], cv.NORM_L2), eps)
 
 
 if __name__ == '__main__':

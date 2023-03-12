@@ -25,8 +25,7 @@ def load_html_file(file_dir):
     data = re.sub(r'([ ]+)(\<)', lambda match: ('!space!' * len(match.group(1))) + match.group(2), data)
     if os.name == 'nt' or sys.version_info[0] == 3:
         data = data.encode('utf-8', 'ignore')
-    soup = BeautifulSoup(data, 'html.parser')
-    return soup
+    return BeautifulSoup(data, 'html.parser')
 
 def update_html(file, soup):
     s = str(soup)
@@ -45,12 +44,12 @@ def insert_python_signatures(python_signatures, symbols_dict, filepath):
         if anchor in symbols_dict:
             s = symbols_dict[anchor]
             logging.info('Process: %r' % s)
-            if s.type == 'fn' or s.type == 'method':
+            if s.type in ['fn', 'method']:
                 process_fn(soup, e, python_signatures[s.cppname], s)
             elif s.type == 'const':
                 process_const(soup, e, python_signatures[s.cppname], s)
             else:
-                logging.error('unsupported type: %s' % s);
+                logging.error(f'unsupported type: {s}');
 
     update_html(filepath, soup)
 
@@ -60,7 +59,7 @@ def process_fn(soup, anchor, python_signature, symbol):
         r = anchor.find_next_sibling(class_='memitem').find(class_='memproto').find('table')
         insert_python_fn_signature(soup, r, python_signature, symbol)
     except:
-        logging.error("Can't process: %s" % symbol)
+        logging.error(f"Can't process: {symbol}")
         traceback.print_exc()
         pprint(anchor)
 
@@ -77,7 +76,7 @@ def process_const(soup, anchor, python_signature, symbol):
             old.replace_with(description)
         #pprint(anchor.parent)
     except:
-        logging.error("Can't process: %s" % symbol)
+        logging.error(f"Can't process: {symbol}")
         traceback.print_exc()
         pprint(anchor)
 

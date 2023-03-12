@@ -111,7 +111,7 @@ def printParams(backend, target):
         cv.dnn.DNN_TARGET_OPENCL_FP16: 'OCL_FP16',
         cv.dnn.DNN_TARGET_MYRIAD: 'MYRIAD'
     }
-    print('%s/%s' % (backendNames[backend], targetNames[target]))
+    print(f'{backendNames[backend]}/{targetNames[target]}')
 
 
 class dnn_test(NewOpenCVTests):

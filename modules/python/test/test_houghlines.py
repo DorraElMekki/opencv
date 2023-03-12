@@ -17,7 +17,7 @@ from tests_common import NewOpenCVTests
 def linesDiff(line1, line2):
 
     norm1 = cv.norm(line1 - line2, cv.NORM_L2)
-    line3 = line1[2:4] + line1[0:2]
+    line3 = line1[2:4] + line1[:2]
     norm2 = cv.norm(line3 - line2, cv.NORM_L2)
 
     return min(norm1, norm2)
@@ -57,9 +57,9 @@ class houghlines_test(NewOpenCVTests):
 
         matches_counter = 0
 
-        for i in range(len(testLines)):
+        for testLine in testLines:
             for j in range(len(lines)):
-                if linesDiff(testLines[i], lines[j]) < eps:
+                if linesDiff(testLine, lines[j]) < eps:
                     matches_counter += 1
 
         self.assertGreater(float(matches_counter) / len(testLines), .7)

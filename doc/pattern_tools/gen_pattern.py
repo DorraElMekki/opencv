@@ -44,8 +44,8 @@ class PatternMaker:
   def makeACirclesPattern(self):
     spacing = self.square_size
     r = spacing / self.radius_rate
-    for i in range(0,self.rows):
-      for j in range(0,self.cols):
+    for i in range(self.rows):
+      for j in range(self.cols):
         dot = SVG("circle", cx= ((j*2 + i%2)*spacing) + spacing, cy=self.height - (i * spacing + spacing), r=r, fill="black", stroke="none")
         self.g.append(dot)
 
@@ -53,8 +53,8 @@ class PatternMaker:
     spacing = self.square_size
     xspacing = (self.width - self.cols * self.square_size) / 2.0
     yspacing = (self.height - self.rows * self.square_size) / 2.0
-    for x in range(0,self.cols):
-      for y in range(0,self.rows):
+    for x in range(self.cols):
+      for y in range(self.rows):
         if x%2 == y%2:
           square = SVG("rect", x=x * spacing + xspacing, y=y * spacing + yspacing, width=spacing, height=spacing, fill="black", stroke="none")
           self.g.append(square)

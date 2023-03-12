@@ -46,12 +46,11 @@ if __name__ == "__main__":
 
             fname = os.path.basename(fname)
             find_module_name = re.search(r'([^_]*)', fname)
-            module_name = find_module_name.group(0)
+            module_name = find_module_name[0]
 
             test_sets = []
             try:
-                tests = testlog_parser.parseLogFile(file)
-                if tests:
+                if tests := testlog_parser.parseLogFile(file):
                     test_sets.append((os.path.basename(file), tests))
             except IOError as err:
                 sys.stderr.write("IOError reading \"" + file + "\" - " + str(err) + os.linesep)
@@ -95,7 +94,7 @@ if __name__ == "__main__":
 
                 for i in range(setsCount):
                     case = cases[i]
-                    if not case is None:
+                    if case is not None:
                         suit_num += 1
                         if case.get('status') == 'run':
                             suit_time += case.get('time')
@@ -108,7 +107,7 @@ if __name__ == "__main__":
                 'time': suit_time, 'num': suit_num, 'failed': fails_num})
             overall_time += suit_time
 
-    if len(testsuits)==0:
+    if not testsuits:
         exit(0)
 
     tbl = table()
@@ -148,7 +147,6 @@ if __name__ == "__main__":
                 tbl.newCell('failed', suit['failed'])
                 rows += 1
 
-    # output table
     if rows:
         if options.generateHtml:
             tbl.htmlPrintTable(sys.stdout)

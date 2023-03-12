@@ -18,11 +18,13 @@ def circleApproximation(circle):
 
     nPoints = 30
     dPhi = 2*pi / nPoints
-    contour = []
-    for i in range(nPoints):
-        contour.append(([circle[0] + circle[2]*cos(i*dPhi),
-            circle[1] + circle[2]*sin(i*dPhi)]))
-
+    contour = [
+        [
+            circle[0] + circle[2] * cos(i * dPhi),
+            circle[1] + circle[2] * sin(i * dPhi),
+        ]
+        for i in range(nPoints)
+    ]
     return np.array(contour).astype(int)
 
 def convContoursIntersectiponRate(c1, c2):
@@ -68,10 +70,10 @@ class houghcircles_test(NewOpenCVTests):
 
         matches_counter = 0
 
-        for i in range(len(testCircles)):
+        for testCircle in testCircles:
             for j in range(len(circles)):
 
-                tstCircle = circleApproximation(testCircles[i])
+                tstCircle = circleApproximation(testCircle)
                 circle = circleApproximation(circles[j])
                 if convContoursIntersectiponRate(tstCircle, circle) > 0.6:
                     matches_counter += 1

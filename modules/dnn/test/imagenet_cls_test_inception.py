@@ -28,7 +28,7 @@ class TensorflowModel(Framework):
             graph_def.ParseFromString(f.read())
             self.sess.graph.as_default()
             tf.import_graph_def(graph_def, name='')
-        self.output = self.sess.graph.get_tensor_by_name(out_blob_name + ":0")
+        self.output = self.sess.graph.get_tensor_by_name(f"{out_blob_name}:0")
 
     def get_name(self):
         return 'Tensorflow'
@@ -36,8 +36,7 @@ class TensorflowModel(Framework):
     def get_output(self, input_blob):
         assert len(input_blob.shape) == 4
         batch_tf = input_blob.transpose(0, 2, 3, 1)
-        out = self.sess.run(self.output,
-                       {self.in_blob_name+':0': batch_tf})
+        out = self.sess.run(self.output, {f'{self.in_blob_name}:0': batch_tf})
         out = out[..., 1:1001]
         return out
 

@@ -60,7 +60,7 @@ class mser_test(NewOpenCVTests):
                 src = cv.GaussianBlur(src, (5, 5), 1.5, 1.5)
             minRegs = 7 if use_big_image else 2
             maxRegs = 1000 if use_big_image else 20
-            if binarize and (thresh == 0 or thresh == 255):
+            if binarize and thresh in [0, 255]:
                 minRegs = maxRegs = 0
             msers, boxes = mserExtractor.detectRegions(src)
             nmsers = len(msers)

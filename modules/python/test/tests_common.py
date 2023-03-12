@@ -27,21 +27,21 @@ class NewOpenCVTests(unittest.TestCase):
     repoUrl = 'https://raw.github.com/opencv/opencv/master'
 
     def find_file(self, filename, searchPaths=[], required=True):
-        searchPaths = searchPaths if searchPaths else [self.repoPath, self.extraTestDataPath]
+        searchPaths = searchPaths or [self.repoPath, self.extraTestDataPath]
         for path in searchPaths:
             if path is not None:
-                candidate = path + '/' + filename
+                candidate = f'{path}/{filename}'
                 if os.path.isfile(candidate):
                     return candidate
         if required:
-            self.fail('File ' + filename + ' not found')
+            self.fail(f'File {filename} not found')
         return None
 
 
     def get_sample(self, filename, iscolor = None):
         if iscolor is None:
             iscolor = cv.IMREAD_COLOR
-        if not filename in self.image_cache:
+        if filename not in self.image_cache:
             filepath = self.find_file(filename)
             with open(filepath, 'rb') as f:
                 filedata = f.read()
@@ -59,15 +59,15 @@ class NewOpenCVTests(unittest.TestCase):
     if sys.version_info[:2] == (2, 6):
         def assertLess(self, a, b, msg=None):
             if not a < b:
-                self.fail('%s not less than %s' % (repr(a), repr(b)))
+                self.fail(f'{repr(a)} not less than {repr(b)}')
 
         def assertLessEqual(self, a, b, msg=None):
             if not a <= b:
-                self.fail('%s not less than or equal to %s' % (repr(a), repr(b)))
+                self.fail(f'{repr(a)} not less than or equal to {repr(b)}')
 
         def assertGreater(self, a, b, msg=None):
             if not a > b:
-                self.fail('%s not greater than %s' % (repr(a), repr(b)))
+                self.fail(f'{repr(a)} not greater than {repr(b)}')
 
     @staticmethod
     def bootstrap():
@@ -101,7 +101,9 @@ def intersectionRate(s1, s2):
     return 2 * area / (cv.contourArea(s1) + cv.contourArea(s2))
 
 def isPointInRect(p, rect):
-    if rect[0] <= p[0] and rect[1] <=p[1] and p[0] <= rect[2] and p[1] <= rect[3]:
-        return True
-    else:
-        return False
+    return (
+        rect[0] <= p[0]
+        and rect[1] <= p[1]
+        and p[0] <= rect[2]
+        and p[1] <= rect[3]
+    )

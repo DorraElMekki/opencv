@@ -51,7 +51,7 @@ net.setPreferableTarget(args.target)
 winName = 'Deep learning image classification in OpenCV'
 cv.namedWindow(winName, cv.WINDOW_NORMAL)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()
     if not hasFrame:
@@ -59,8 +59,8 @@ while cv.waitKey(1) < 0:
         break
 
     # Create a 4D blob from a frame.
-    inpWidth = args.width if args.width else frame.shape[1]
-    inpHeight = args.height if args.height else frame.shape[0]
+    inpWidth = args.width or frame.shape[1]
+    inpHeight = args.height or frame.shape[0]
     blob = cv.dnn.blobFromImage(frame, args.scale, (inpWidth, inpHeight), args.mean, args.rgb, crop=False)
 
     # Run a model

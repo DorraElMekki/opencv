@@ -40,8 +40,8 @@ height_stride = float(grid_anchor_generator['height_stride'][0])
 features_stride = float(config['feature_extractor'][0]['first_stage_features_stride'][0])
 
 print('Number of classes: %d' % num_classes)
-print('Scales:            %s' % str(scales))
-print('Aspect ratios:     %s' % str(aspect_ratios))
+print(f'Scales:            {scales}')
+print(f'Aspect ratios:     {aspect_ratios}')
 print('Width stride:      %f' % width_stride)
 print('Height stride:     %f' % height_stride)
 print('Features stride:   %f' % features_stride)
@@ -133,17 +133,13 @@ graph_def.node.extend([detectionOut])
 
 # Save as text.
 for node in reversed(topNodes):
-    if node.op != 'CropAndResize':
-        graph_def.node.extend([node])
-        topNodes.pop()
-    else:
+    if node.op == 'CropAndResize':
         if numCropAndResize == 1:
             break
-        else:
-            graph_def.node.extend([node])
-            topNodes.pop()
-            numCropAndResize -= 1
+        numCropAndResize -= 1
 
+    topNodes.pop()
+    graph_def.node.extend([node])
 addSoftMax('SecondStageBoxPredictor/Reshape_1', 'SecondStageBoxPredictor/Reshape_1/softmax', graph_def)
 
 addSlice('SecondStageBoxPredictor/Reshape_1/softmax',

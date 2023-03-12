@@ -34,8 +34,8 @@ def createFasterRCNNGraph(modelPath, configPath, outputPath):
     features_stride = float(config['feature_extractor'][0]['first_stage_features_stride'][0])
 
     print('Number of classes: %d' % num_classes)
-    print('Scales:            %s' % str(scales))
-    print('Aspect ratios:     %s' % str(aspect_ratios))
+    print(f'Scales:            {scales}')
+    print(f'Aspect ratios:     {aspect_ratios}')
     print('Width stride:      %f' % width_stride)
     print('Height stride:     %f' % height_stride)
     print('Features stride:   %f' % features_stride)

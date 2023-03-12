@@ -35,13 +35,12 @@ class texture_flow_test(NewOpenCVTests):
 
         points =  np.dstack( np.mgrid[d/2:w:d, d/2:h:d] ).reshape(-1, 2)
 
-        textureVectors = []
-        for x, y in np.int32(points):
-            textureVectors.append(np.int32(flow[y, x]*d))
-
-        for i in range(len(textureVectors)):
-            self.assertTrue(cv.norm(textureVectors[i], cv.NORM_L2) < eps
-            or abs(cv.norm(textureVectors[i], cv.NORM_L2) - d) < eps)
+        textureVectors = [np.int32(flow[y, x]*d) for x, y in np.int32(points)]
+        for textureVector in textureVectors:
+            self.assertTrue(
+                cv.norm(textureVector, cv.NORM_L2) < eps
+                or abs(cv.norm(textureVector, cv.NORM_L2) - d) < eps
+            )
 
 if __name__ == '__main__':
     NewOpenCVTests.bootstrap()

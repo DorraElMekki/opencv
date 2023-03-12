@@ -13,14 +13,14 @@ class Fail(Exception):
 
 def execute(cmd, shell=False):
     try:
-        log.info("Executing: %s" % cmd)
+        log.info(f"Executing: {cmd}")
         env = os.environ.copy()
         env['VERBOSE'] = '1'
         retcode = subprocess.call(cmd, shell=shell, env=env)
         if retcode < 0:
-            raise Fail("Child was terminated by signal: %s" % -retcode)
+            raise Fail(f"Child was terminated by signal: {-retcode}")
         elif retcode > 0:
-            raise Fail("Child returned: %s" % retcode)
+            raise Fail(f"Child returned: {retcode}")
     except OSError as e:
         raise Fail("Execution failed: %d / %s" % (e.errno, e.strerror))
 
@@ -39,23 +39,17 @@ def check_dir(d, create=False, clean=False):
     log.info("Check dir %s (create: %s, clean: %s)", d, create, clean)
     if os.path.exists(d):
         if not os.path.isdir(d):
-            raise Fail("Not a directory: %s" % d)
+            raise Fail(f"Not a directory: {d}")
         if clean:
             for x in glob.glob(os.path.join(d, "*")):
                 rm_one(x)
-    else:
-        if create:
-            os.makedirs(d)
+    elif create:
+        os.makedirs(d)
     return d
 
 def check_file(d):
     d = os.path.abspath(d)
-    if os.path.exists(d):
-        if os.path.isfile(d):
-            return True
-        else:
-            return False
-    return False
+    return bool(os.path.isfile(d)) if os.path.exists(d) else False
 
 def find_file(name, path):
     for root, dirs, files in os.walk(path):
@@ -77,75 +71,75 @@ class Builder:
             rm_one(d)
 
     def get_cmake_cmd(self):
-        cmd = ["cmake",
-               "-DCMAKE_BUILD_TYPE=Release",
-               "-DCMAKE_TOOLCHAIN_FILE='%s'" % self.get_toolchain_file(),
-               "-DCPU_BASELINE=''",
-               "-DCPU_DISPATCH=''",
-               "-DCV_TRACE=OFF",
-               "-DBUILD_SHARED_LIBS=OFF",
-               "-DWITH_1394=OFF",
-               "-DWITH_ADE=OFF",
-               "-DWITH_VTK=OFF",
-               "-DWITH_EIGEN=OFF",
-               "-DWITH_FFMPEG=OFF",
-               "-DWITH_GSTREAMER=OFF",
-               "-DWITH_GTK=OFF",
-               "-DWITH_GTK_2_X=OFF",
-               "-DWITH_IPP=OFF",
-               "-DWITH_JASPER=OFF",
-               "-DWITH_JPEG=OFF",
-               "-DWITH_WEBP=OFF",
-               "-DWITH_OPENEXR=OFF",
-               "-DWITH_OPENGL=OFF",
-               "-DWITH_OPENVX=OFF",
-               "-DWITH_OPENNI=OFF",
-               "-DWITH_OPENNI2=OFF",
-               "-DWITH_PNG=OFF",
-               "-DWITH_TBB=OFF",
-               "-DWITH_PTHREADS_PF=OFF",
-               "-DWITH_TIFF=OFF",
-               "-DWITH_V4L=OFF",
-               "-DWITH_OPENCL=OFF",
-               "-DWITH_OPENCL_SVM=OFF",
-               "-DWITH_OPENCLAMDFFT=OFF",
-               "-DWITH_OPENCLAMDBLAS=OFF",
-               "-DWITH_GPHOTO2=OFF",
-               "-DWITH_LAPACK=OFF",
-               "-DWITH_ITT=OFF",
-               "-DBUILD_ZLIB=ON",
-               "-DBUILD_opencv_apps=OFF",
-               "-DBUILD_opencv_calib3d=ON",  # No bindings provided. This module is used as a dependency for other modules.
-               "-DBUILD_opencv_dnn=ON",
-               "-DBUILD_opencv_features2d=ON",
-               "-DBUILD_opencv_flann=ON",  # No bindings provided. This module is used as a dependency for other modules.
-               "-DBUILD_opencv_gapi=OFF",
-               "-DBUILD_opencv_ml=OFF",
-               "-DBUILD_opencv_photo=OFF",
-               "-DBUILD_opencv_imgcodecs=OFF",
-               "-DBUILD_opencv_shape=OFF",
-               "-DBUILD_opencv_videoio=OFF",
-               "-DBUILD_opencv_videostab=OFF",
-               "-DBUILD_opencv_highgui=OFF",
-               "-DBUILD_opencv_superres=OFF",
-               "-DBUILD_opencv_stitching=OFF",
-               "-DBUILD_opencv_java=OFF",
-               "-DBUILD_opencv_js=ON",
-               "-DBUILD_opencv_python2=OFF",
-               "-DBUILD_opencv_python3=OFF",
-               "-DBUILD_EXAMPLES=OFF",
-               "-DBUILD_PACKAGE=OFF",
-               "-DBUILD_TESTS=OFF",
-               "-DBUILD_PERF_TESTS=OFF"]
+        cmd = [
+            "cmake",
+            "-DCMAKE_BUILD_TYPE=Release",
+            f"-DCMAKE_TOOLCHAIN_FILE='{self.get_toolchain_file()}'",
+            "-DCPU_BASELINE=''",
+            "-DCPU_DISPATCH=''",
+            "-DCV_TRACE=OFF",
+            "-DBUILD_SHARED_LIBS=OFF",
+            "-DWITH_1394=OFF",
+            "-DWITH_ADE=OFF",
+            "-DWITH_VTK=OFF",
+            "-DWITH_EIGEN=OFF",
+            "-DWITH_FFMPEG=OFF",
+            "-DWITH_GSTREAMER=OFF",
+            "-DWITH_GTK=OFF",
+            "-DWITH_GTK_2_X=OFF",
+            "-DWITH_IPP=OFF",
+            "-DWITH_JASPER=OFF",
+            "-DWITH_JPEG=OFF",
+            "-DWITH_WEBP=OFF",
+            "-DWITH_OPENEXR=OFF",
+            "-DWITH_OPENGL=OFF",
+            "-DWITH_OPENVX=OFF",
+            "-DWITH_OPENNI=OFF",
+            "-DWITH_OPENNI2=OFF",
+            "-DWITH_PNG=OFF",
+            "-DWITH_TBB=OFF",
+            "-DWITH_PTHREADS_PF=OFF",
+            "-DWITH_TIFF=OFF",
+            "-DWITH_V4L=OFF",
+            "-DWITH_OPENCL=OFF",
+            "-DWITH_OPENCL_SVM=OFF",
+            "-DWITH_OPENCLAMDFFT=OFF",
+            "-DWITH_OPENCLAMDBLAS=OFF",
+            "-DWITH_GPHOTO2=OFF",
+            "-DWITH_LAPACK=OFF",
+            "-DWITH_ITT=OFF",
+            "-DBUILD_ZLIB=ON",
+            "-DBUILD_opencv_apps=OFF",
+            "-DBUILD_opencv_calib3d=ON",
+            "-DBUILD_opencv_dnn=ON",
+            "-DBUILD_opencv_features2d=ON",
+            "-DBUILD_opencv_flann=ON",
+            "-DBUILD_opencv_gapi=OFF",
+            "-DBUILD_opencv_ml=OFF",
+            "-DBUILD_opencv_photo=OFF",
+            "-DBUILD_opencv_imgcodecs=OFF",
+            "-DBUILD_opencv_shape=OFF",
+            "-DBUILD_opencv_videoio=OFF",
+            "-DBUILD_opencv_videostab=OFF",
+            "-DBUILD_opencv_highgui=OFF",
+            "-DBUILD_opencv_superres=OFF",
+            "-DBUILD_opencv_stitching=OFF",
+            "-DBUILD_opencv_java=OFF",
+            "-DBUILD_opencv_js=ON",
+            "-DBUILD_opencv_python2=OFF",
+            "-DBUILD_opencv_python3=OFF",
+            "-DBUILD_EXAMPLES=OFF",
+            "-DBUILD_PACKAGE=OFF",
+            "-DBUILD_TESTS=OFF",
+            "-DBUILD_PERF_TESTS=OFF",
+        ]
         if self.options.build_doc:
             cmd.append("-DBUILD_DOCS=ON")
         else:
             cmd.append("-DBUILD_DOCS=OFF")
 
-        flags = self.get_build_flags()
-        if flags:
-            cmd += ["-DCMAKE_C_FLAGS='%s'" % flags,
-                    "-DCMAKE_CXX_FLAGS='%s'" % flags]
+        if flags := self.get_build_flags():
+            cmd += [f"-DCMAKE_C_FLAGS='{flags}'", f"-DCMAKE_CXX_FLAGS='{flags}'"]
         return cmd
 
     def get_build_flags(self):
@@ -219,7 +213,7 @@ if __name__ == "__main__":
         elif args.disable_wasm:
             target = "asm.js"
         log.info("=====")
-        log.info("===== Config OpenCV.js build for %s" % target)
+        log.info(f"===== Config OpenCV.js build for {target}")
         log.info("=====")
         builder.config()
 

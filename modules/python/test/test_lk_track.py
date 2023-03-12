@@ -30,10 +30,7 @@ feature_params = dict( maxCorners = 500,
 
 def getRectFromPoints(points):
 
-    distances = []
-    for point in points:
-        distances.append(cv.norm(point, cv.NORM_L2))
-
+    distances = [cv.norm(point, cv.NORM_L2) for point in points]
     x0, y0 = points[np.argmin(distances)]
     x1, y1 = points[np.argmax(distances)]
 

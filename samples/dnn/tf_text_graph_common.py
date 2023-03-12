@@ -8,22 +8,21 @@ def tokenize(s):
         if isComment:
             continue
 
-        if symbol == ' ' or symbol == '\t' or symbol == '\r' or symbol == '\'' or \
-           symbol == '\n' or symbol == ':' or symbol == '\"' or symbol == ';' or \
-           symbol == ',':
+        if symbol in [' ', '\t', '\r', '\'', '\n', ':', '\"', ';', ',']:
 
-            if (symbol == '\"' or symbol == '\'') and isString:
+            if (symbol not in ['\"', '\''] or not isString) and isString:
+                token += symbol
+            elif (
+                (symbol not in ['\"', '\''] or not isString)
+                and token
+                or symbol in ['\"', '\'']
+                and isString
+            ):
                 tokens.append(token)
                 token = ""
-            else:
-                if isString:
-                    token += symbol
-                elif token:
-                    tokens.append(token)
-                    token = ""
-            isString = (symbol == '\"' or symbol == '\'') ^ isString;
+            isString = (symbol in ['\"', '\'']) ^ isString;
 
-        elif symbol == '{' or symbol == '}' or symbol == '[' or symbol == ']':
+        elif symbol in ['{', '}', '[', ']']:
             if token:
                 tokens.append(token)
                 token = ""
@@ -63,11 +62,10 @@ def parseMessage(tokens, idx):
             isArray = True
         elif fieldValue == ']':
             isArray = False
+        elif fieldName in msg:
+            msg[fieldName].append(fieldValue)
         else:
-            if fieldName in msg:
-                msg[fieldName].append(fieldValue)
-            else:
-                msg[fieldName] = [fieldValue]
+            msg[fieldName] = [fieldValue]
     return msg, idx
 
 
@@ -83,10 +81,10 @@ def readTextMessage(filePath):
 
 
 def listToTensor(values):
-    if all([isinstance(v, float) for v in values]):
+    if all(isinstance(v, float) for v in values):
         dtype = 'DT_FLOAT'
         field = 'float_val'
-    elif all([isinstance(v, int) for v in values]):
+    elif all(isinstance(v, int) for v in values):
         dtype = 'DT_INT32'
         field = 'int_val'
     else:
@@ -116,13 +114,13 @@ def addConstNode(name, values, graph_def):
 
 def addSlice(inp, out, begins, sizes, graph_def):
     beginsNode = NodeDef()
-    beginsNode.name = out + '/begins'
+    beginsNode.name = f'{out}/begins'
     beginsNode.op = 'Const'
     beginsNode.addAttr('value', begins)
     graph_def.node.extend([beginsNode])
 
     sizesNode = NodeDef()
-    sizesNode.name = out + '/sizes'
+    sizesNode.name = f'{out}/sizes'
     sizesNode.op = 'Const'
     sizesNode.addAttr('value', sizes)
     graph_def.node.extend([sizesNode])
@@ -138,7 +136,7 @@ def addSlice(inp, out, begins, sizes, graph_def):
 
 def addReshape(inp, out, shape, graph_def):
     shapeNode = NodeDef()
-    shapeNode.name = out + '/shape'
+    shapeNode.name = f'{out}/shape'
     shapeNode.op = 'Const'
     shapeNode.addAttr('value', shape)
     graph_def.node.extend([shapeNode])
@@ -176,7 +174,7 @@ class NodeDef:
         self.attr = {}
 
     def addAttr(self, key, value):
-        assert(not key in self.attr)
+        assert key not in self.attr
         if isinstance(value, bool):
             self.attr[key] = {'b': value}
         elif isinstance(value, int):
@@ -188,7 +186,7 @@ class NodeDef:
         elif isinstance(value, list):
             self.attr[key] = listToTensor(value)
         else:
-            raise Exception('Unknown type of attribute ' + key)
+            raise Exception(f'Unknown type of attribute {key}')
 
     def Clear(self):
         self.input = []
@@ -223,7 +221,7 @@ class GraphDef:
 
                             if isinstance(v, bool):
                                 printed = 'true' if v else 'false'
-                            elif v == 'true' or v == 'false':
+                            elif v in ['true', 'false']:
                                 printed = 'true' if v == 'true' else 'false'
                             elif isString:
                                 printed = '\"%s\"' % v
@@ -322,8 +320,7 @@ def writeTextGraph(modelPath, outputPath, outNodes):
             graph_def = TransformGraph(graph_def, ['image_tensor'], outNodes, ['sort_by_execution_order'])
 
             for node in graph_def.node:
-                if node.op == 'Const':
-                    if 'value' in node.attr:
-                        del node.attr['value']
+                if node.op == 'Const' and 'value' in node.attr:
+                    del node.attr['value']
 
         tf.train.write_graph(graph_def, "", outputPath, as_text=True)

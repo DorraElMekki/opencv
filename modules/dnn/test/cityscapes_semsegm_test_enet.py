@@ -41,22 +41,19 @@ class CityscapesDataFetch(DatasetImageFetch):
     def __init__(self, img_dir, segm_dir, preproc):
         self.img_dir = img_dir
         self.segm_dir = segm_dir
-        self.segm_files = sorted([img for img in self.locate('*_color.png', segm_dir)])
+        self.segm_files = sorted(list(self.locate('*_color.png', segm_dir)))
         self.colors = self.get_colors()
         self.data_prepoc = preproc
         self.i = 0
 
     @staticmethod
     def get_colors():
-        result = []
         colors_list = (
          (0, 0, 0), (128, 64, 128), (244, 35, 232), (70, 70, 70), (102, 102, 156), (190, 153, 153), (153, 153, 153),
          (250, 170, 30), (220, 220, 0), (107, 142, 35), (152, 251, 152), (70, 130, 180), (220, 20, 60), (255, 0, 0),
          (0, 0, 142), (0, 0, 70), (0, 60, 100), (0, 80, 100), (0, 0, 230), (119, 11, 32))
 
-        for c in colors_list:
-            result.append(DatasetImageFetch.pix_to_c(c))
-        return result
+        return [DatasetImageFetch.pix_to_c(c) for c in colors_list]
 
     def __iter__(self):
         return self
@@ -106,8 +103,7 @@ class TorchModel(Framework):
 
     def get_output(self, input_blob):
         tensor = torch.FloatTensor(input_blob)
-        out = self.net.forward(tensor).numpy()
-        return out
+        return self.net.forward(tensor).numpy()
 
 
 class DnnTorchModel(DnnCaffeModel):

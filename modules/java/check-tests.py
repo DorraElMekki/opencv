@@ -54,12 +54,7 @@ class JavaParser:
         mset = self.dict2set(self.mdict)
         tset = self.dict2set(self.tdict)
         nottested = mset - tset
-        out = set()
-
-        for name in nottested:
-            out.add(name + "   " + self.mwhere[name])
-
-        return out
+        return {f"{name}   {self.mwhere[name]}" for name in nottested}
 
 
     def parse(self, path):
@@ -84,7 +79,7 @@ class JavaParser:
                 parser.parse_file(path)
         elif os.path.isdir(path):
             for x in os.listdir(path):
-                self.parse(path + "/" + x)
+                self.parse(f"{path}/{x}")
         return
 
 
@@ -95,55 +90,50 @@ class JavaParser:
         for cls in classes_ignore_list:
             if re.match(cls, clsname):
                 return
-        f = open(fname, "rt")
-        linenum = 0
-        for line in f:
-            linenum += 1
-            m1 = self.r1.match(line)
-            m2 = self.r2.match(line)
-            m3 = self.r3.match(line)
-            func = ''
-            args_str = ''
-            if m1:
-                func = m1.group(1)
-                args_str = m1.group(2)
-            elif m2:
-                if "public" not in line:
+        with open(fname, "rt") as f:
+            linenum = 0
+            for line in f:
+                linenum += 1
+                m1 = self.r1.match(line)
+                m2 = self.r2.match(line)
+                m3 = self.r3.match(line)
+                func = ''
+                args_str = ''
+                if m1:
+                    func = m1.group(1)
+                    args_str = m1.group(2)
+                elif m2:
+                    if "public" not in line:
+                        continue
+                    func = m2.group(1)
+                    args_str = m2.group(2)
+                elif m3:
+                    self.empty_stubs_cnt += 1
                     continue
-                func = m2.group(1)
-                args_str = m2.group(2)
-            elif m3:
-                self.empty_stubs_cnt += 1
-                continue
-            else:
-                #if "public" in line:
-                    #print "UNRECOGNIZED: " + line
-                continue
-            d = (self.mdict, self.tdict)[istest]
-            w = (self.mwhere, self.twhere)[istest]
-            func = re.sub(r"^test", "", func)
-            func = clsname + "--" + func[0].upper() + func[1:]
-            args_str = args_str.replace("[]", "Array").replace("...", "Array ")
-            args_str = re.sub(r"List<(\w+)>", "ListOf\g<1>", args_str)
-            args_str = re.sub(r"List<(\w+)>", "ListOf\g<1>", args_str)
-            args = [a.split()[0] for a in args_str.split(",") if a]
-            func_ex = func + "".join([a[0].upper() + a[1:] for a in args])
-            func_loc = fname + " (line: " + str(linenum)  + ")"
-            skip = False
-            for fi in funcs_ignore_list:
-                if re.match(fi, func_ex):
-                    skip = True
-                    break
-            if skip:
-                continue
-            if func in d:
-                d[func].append(func_ex)
-            else:
-                d[func] = [func_ex]
-            w[func_ex] = func_loc
-            w[func] = func_loc
+                else:
+                    #if "public" in line:
+                        #print "UNRECOGNIZED: " + line
+                    continue
+                d = (self.mdict, self.tdict)[istest]
+                w = (self.mwhere, self.twhere)[istest]
+                func = re.sub(r"^test", "", func)
+                func = f"{clsname}--{func[0].upper()}{func[1:]}"
+                args_str = args_str.replace("[]", "Array").replace("...", "Array ")
+                args_str = re.sub(r"List<(\w+)>", "ListOf\g<1>", args_str)
+                args_str = re.sub(r"List<(\w+)>", "ListOf\g<1>", args_str)
+                args = [a.split()[0] for a in args_str.split(",") if a]
+                func_ex = func + "".join([a[0].upper() + a[1:] for a in args])
+                func_loc = f"{fname} (line: {linenum})"
+                skip = any(re.match(fi, func_ex) for fi in funcs_ignore_list)
+                if skip:
+                    continue
+                if func in d:
+                    d[func].append(func_ex)
+                else:
+                    d[func] = [func_ex]
+                w[func_ex] = func_loc
+                w[func] = func_loc
 
-        f.close()
         return
 
 
@@ -160,6 +150,6 @@ if __name__ == '__main__':
     if funcs:
         print ('{} {}'.format("NOT TESTED methods:\n\t", "\n\t".join(sorted(funcs))))
     print ("Total methods found: %i (%i)" % parser.get_funcs_count())
-    print ('{} {}'.format("Not tested methods found:", len(funcs)))
-    print ('{} {}'.format("Total tests found:", parser.get_tests_count()))
-    print ('{} {}'.format("Empty test stubs found:", parser.get_empty_stubs_count()))
+    print(f'Not tested methods found: {len(funcs)}')
+    print(f'Total tests found: {parser.get_tests_count()}')
+    print(f'Empty test stubs found: {parser.get_empty_stubs_count()}')

@@ -57,7 +57,7 @@ if args.colors:
 legend = None
 def showLegend(classes):
     global legend
-    if not classes is None and legend is None:
+    if classes is not None and legend is None:
         blockHeight = 30
         assert(len(classes) == len(colors))
 
@@ -79,7 +79,7 @@ net.setPreferableTarget(args.target)
 winName = 'Deep learning image classification in OpenCV'
 cv.namedWindow(winName, cv.WINDOW_NORMAL)
 
-cap = cv.VideoCapture(args.input if args.input else 0)
+cap = cv.VideoCapture(args.input or 0)
 legend = None
 while cv.waitKey(1) < 0:
     hasFrame, frame = cap.read()
@@ -91,8 +91,8 @@ while cv.waitKey(1) < 0:
     frameWidth = frame.shape[1]
 
     # Create a 4D blob from a frame.
-    inpWidth = args.width if args.width else frameWidth
-    inpHeight = args.height if args.height else frameHeight
+    inpWidth = args.width or frameWidth
+    inpHeight = args.height or frameHeight
     blob = cv.dnn.blobFromImage(frame, args.scale, (inpWidth, inpHeight), args.mean, args.rgb, crop=False)
 
     # Run a model
@@ -107,9 +107,10 @@ while cv.waitKey(1) < 0:
     if not colors:
         # Generate colors
         colors = [np.array([0, 0, 0], np.uint8)]
-        for i in range(1, numClasses):
-            colors.append((colors[i - 1] + np.random.randint(0, 256, [3], np.uint8)) / 2)
-
+        colors.extend(
+            (colors[i - 1] + np.random.randint(0, 256, [3], np.uint8)) / 2
+            for i in range(1, numClasses)
+        )
     classIds = np.argmax(score[0], axis=0)
     segm = np.stack([colors[idx] for idx in classIds.flatten()])
     segm = segm.reshape(height, width, 3)

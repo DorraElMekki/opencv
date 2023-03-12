@@ -49,14 +49,15 @@ class peopledetect_test(NewOpenCVTests):
 
             matches = 0
 
-            for i in range(len(found_filtered)):
-                for j in range(len(testPeople)):
+            for item in found_filtered:
+                for testPerson in testPeople:
 
-                    found_rect = (found_filtered[i][0], found_filtered[i][1],
-                        found_filtered[i][0] + found_filtered[i][2],
-                        found_filtered[i][1] + found_filtered[i][3])
+                    found_rect = item[0], item[1], item[0] + item[2], item[1] + item[3]
 
-                    if intersectionRate(found_rect, testPeople[j][0]) > eps or intersectionRate(found_rect, testPeople[j][1]) > eps:
+                    if (
+                        intersectionRate(found_rect, testPerson[0]) > eps
+                        or intersectionRate(found_rect, testPerson[1]) > eps
+                    ):
                         matches += 1
 
             self.assertGreater(matches, 0)
